@@ -51,10 +51,154 @@ var chroma;
         lime: [0, 255, 0], olive: [128, 128, 0], rebeccapurple: [102, 51, 153],
         silver: [192, 192, 192], teal: [0, 128, 128]
     },
-    models = ['hsx', 'rgb', 'hex'],
+    validationModels = ['hex', 'hsx', 'rgb'],
+    conversionModels = ['hex', 'hsl', 'hsv', 'rgb'];
+    conversion = {
+        hex: function (arr) {
+            var value;
+            if (validation.hex(arr)) {
+                value = arr[0];
+                switch (arr[0].length) {
+                    case 1: // Hexidecimal shorthand a, returns aaaaaa
+                        return [parseInt(value + value, 16), parseInt(value + value, 16), parseInt(value + value, 16)];
+                    case 2: // Hexidecima shorthand ab, returns ababab
+                        return [parseInt(value, 16), parseInt(value, 16), parseInt(value, 16)];
+                    case 3: // Hexidecimal shorthand abc, returns aabbcc
+                        return [parseInt(value[0] + value[0], 16), parseInt(value[1] + value[1], 16), parseInt(value[2] + value[2], 16)];
+                    case 4: // Hexidecimal/alpha shorthand abcd, returns aabbccdd
+                        return [parseInt(value[0] + value[0], 16), parseInt(value[1] + value[1], 16), parseInt(value[2] + value[2], 16), parseInt(value[3] + value[3], 16) / 255];
+                    case 6: // Hexidecimal abcdef
+                        return value.match(/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i).slice(1).map(function (v) {
+                            return parseInt(v, 16);
+                        }); // Set alpha
+                    case 8: // Hexidecimal/alpha abcdef01
+                        return value.match(/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i).slice(1).map(function (v, i) {
+                            return i < 3 ? parseInt(v, 16) : parseInt(v, 16) / 255;
+                        });
+                    default:
+                        break;
+                }
+            }
+        },
+        hsl: function (arr) {
+            var r, g, b, values;
+            function getHue (t, s, l) {
+                var q = l < 0.5 ? l * (1 + s) : l + s - l * s,
+                    p = 2 * l - q;
+                t = t < 0 ? t + 1 : t;
+                t = t > 1 ? t - 1 : t;
+                if (t < 1 / 6) {
+                    return p + (q - p) * 6 * t;
+                } else if (t < 1 / 2) {
+                    return q;
+                } else if (t < 2 / 3) {
+                    return p + (q - p) * (2 / 3 - t) * 6;
+                } else {
+                    return p;
+                }
+            }
+            if (validation.hsx(arr)) {
+                values = parseHsx(arr);
+                if (values[1] === 0) {
+                    r = g = b = values[2];
+                } else {
+                    r = getHue(values[0] + 1 / 3, values[1], values[2]);
+                    g = getHue(values[0], values[1], values[2]);
+                    b = getHue(values[0] - 1 / 3, values[1], values[2]);
+                }
+                if (values.length === 4)
+                    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), values[3]];
+                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+            }
+            return null;
+        },
+        hsv: function (arr) {
+            var r, g, b, i, f, p, q, t, values;
+            if (validation.hsx(arr)) {
+                values = parseHsx(arr);
+                i = Math.floor(values[0] * 6);
+                f = values[0] * 6 - i;
+                p = values[2] * (1 - values[1]);
+                q = values[2] * (1 - f * values[1]);
+                t = values[2] * (1 - (1 - f) * values[1]);
+                switch (i % 6) {
+                    case 0:
+                        r = values[2];
+                        g = t;
+                        b = p;
+                        break;
+                    case 1:
+                        r = q;
+                        g = values[2];
+                        b = p;
+                        break;
+                    case 2:
+                        r = p;
+                        g = values[2];
+                        b = t;
+                        break;
+                    case 3:
+                        r = p;
+                        g = q;
+                        b = values[2];
+                        break;
+                    case 4:
+                        r = t;
+                        g = p;
+                        b = values[2];
+                        break;
+                    case 5:
+                        r = values[2];
+                        g = p;
+                        b = q;
+                }
+                if (values.length === 4)
+                    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), values[3]];
+                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+            }
+            return null;
+        },
+        rgb: function (arr) {
+            if (validation.rgb(arr)) {
+                return arr.map(function (value) {
+                    return parseFloat(value, 10);
+                });
+            }
+            return null;
+        }
+    },
+    fn = {
+        hex: function (obj) {
+            return chromaToHex([obj.red, obj.green, obj.blue]);
+        },
+        hexa: function (obj) {
+            return chromaToHex([obj.red, obj.green, obj.blue, obj.alpha]);
+        },
+        hsl: function (obj) {
+            return chromaToHsl([obj.red, obj.green, obj.blue]);
+        },
+        hsla: function (obj) {
+            return chromaToHsl([obj.red, obj.green, obj.blue, obj.alpha]);
+        },
+        hsv: function (obj, opt) {
+            return chromaToHsv([obj.red, obj.green, obj.blue]);
+        },
+        hsva: function (obj, opt) {
+            return chromaToHsv([obj.red, obj.green, obj.blue, obj.alpha]);
+        },
+        rgb: function (obj, opt) {
+            return chromaToRgb([obj.red, obj.green, obj.blue]);
+        },
+        rgba: function (obj, opt) {
+            return chromaToRgb([obj.red, obj.green, obj.blue, obj.alpha]);
+        },
+        x11: function (obj) {
+            return chromaToX11([obj.red, obj.green, obj.blue]);
+        }
+    },
     validation = {
         hex: function (arr) {
-            if (Number.isNaN(parseFloat(arr[0], 16)))
+            if (Number.isNaN(parseInt(arr[0], 16)))
                 return false;
             if (!arr[0].length || arr[0].length === 5 || arr[0].length === 7 || arr[0].length > 8)
                 return false;
@@ -68,9 +212,9 @@ var chroma;
                 n = parseFloat(arr[i], 10);
                 if (Number.isNaN(n))
                     return false;
-                if (i === 3 && 0 > n || n > 1) {
+                if (i === 3 && (0 > n || n > 1)) {
                     return false;
-                } else if (i && 0 > n || n > 100) {
+                } else if (i && (0 > n || n > 100)) {
                     return false;
                 }
             }
@@ -78,21 +222,36 @@ var chroma;
         },
         rgb: function (arr) {
             var i, n;
-            if (3 > arr.length || arr.length > 4)
-                return false;
-            for (i = 0; i < arr.length; i = i + 1) {
-                n = parseFloat(arr[i], 10);
-                if (Number.isNaN(n))
+                if (3 > arr.length || arr.length > 4)
                     return false;
-                if (i === 3 ? 0 > n || n > 1 : 0 > n || n > 255)
-                    return false;
-            }
-            return true;
+                for (i = 0; i < arr.length; i = i + 1) {
+                    n = parseFloat(arr[i], 10);
+                    if (Number.isNaN(n))
+                        return false;
+                    if (i === 3 ? 0 > n || n > 1 : 0 > n || n > 255)
+                        return false;
+                }
+                return true;
         }
     };
+    //  Auxillary Functions
+    function sanitize (result) {
+        if (result === null)
+            return false;
+        return result.slice(1).filter(function (r) {
+            return r ? true : false;
+        });
+    }
+
+    //  VALIDATION
+    function validate (clean, fn) {
+        if (Array.isArray(clean) && clean.length)
+            return fn(clean);
+        return false;
+    }
     function validChromaObject (obj) {
-        var k, n, len = Object.keys(obj);
-        if (3 > len || len > 4)
+        var k, n;
+        if (Object.keys(obj).length !== 4)
             return false;
         for (k in obj) {
             n = parseFloat(obj[k]);
@@ -106,40 +265,288 @@ var chroma;
         }
         return true;
     }
-    function sanitize (result) {
-        if (result === null)
-            return false;
-        return result.slice(1).filter(function (r) {
-            return r ? true : false;
-        });
-    }
-    function validate (clean, fn) {
+
+    //  CONVERSION
+    function convert (clean, fn) {
         if (Array.isArray(clean) && clean.length)
             return fn(clean);
-        return false;
+        return null;
+    }
+    function parseHsx (arr) {
+        return arr.map(function (value, v) {
+            if (v === 0) {
+                return value.includes('-') ? (360 + (parseFloat(value, 10) % 360)) / 360 : (parseFloat(value, 10) % 360) / 360;
+            } else if (v < 3) {
+                return parseFloat(value, 10) / 100;
+            } else {
+                return parseFloat(value, 10);
+            }
+        });
     }
 
+    //  To Chroma Object
+    function rgbToChromaObject (arr) {
+        var o = {},
+            keys = ['red', 'green', 'blue', 'alpha'];
+        if (arr === null)
+            return null;
+        arr.forEach(function (value, i) {
+            o[keys[i]] = value;
+        });
+        if (Object.keys(o).length === 3)
+            o.alpha = 1;
+        o.to = function (model) {
+            return fn[model](o);
+        };
+        return o;
+    }
 
+    //  Chroma to X
+    function chromaToHex (arr) {
+        var value = '#';
+        arr.forEach(function (hex) {
+            var v = i === 3 ? Math.round((hex * 255)).toString(16) : hex.toString(16);
+            if (v.length < 2)
+                v = '0' + v;
+            value = value + v;
+        });
+        return value;
+    }
+    function chromaToHsl (arr) {
+        var r = arr[0] / 255,
+            g = arr[1] / 255,
+            b = arr[2] / 255,
+            max = Math.max(r, g, b),
+            min = Math.min(r, g, b),
+            d = max - min,
+            h,
+            s,
+            l = (max + min) / 2;
+        if (max === min) {
+            h = s = 0;
+        } else {
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r:
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                    break;
+                case g:
+                    h = (b - r) / d + 2;
+                    break;
+                case b:
+                    h = (r - g) / d + 4;
+                    break;
+                default:
+                    break;
+            }
+            h = h / 6;
+        }
+        if (arr.length === 4)
+            return 'hsla(' + h * 360 + ', ' + s * 100 + '%, ' + l * 100 + '%, ' + arr[3] + ')';
+        return 'hsl(' + h * 360 + ', ' + s * 100 + '%, ' + l * 100 + '%)';
+    }
+    function chromaToHsv (arr) {
+        var r = arr[0] / 255,
+            g = arr[1] / 255,
+            b = arr[2] / 255,
+            max = Math.max(r, g, b),
+            min = Math.min(r, g, b),
+            d = max - min,
+            h,
+            s = max === 0 ? 0 : d / max;
+            v = max;
+        if (max === min) {
+            h = 0;
+        } else {
+            switch (max) {
+                case r:
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                    break;
+                case g:
+                    h = (b - r) / d + 2;
+                    break;
+                case b:
+                    h = (r - g) / d + 4;
+                    break;
+            }
+            h = h / 6;
+        }
+        if (arr.length === 4)
+            return 'hsva(' + h * 360 + ', ' + s * 100 + '%, ' + v * 100 + '%, ' + arr[3] + ')';
+        return 'hsv(' + h * 360 + ', ' + s * 100 + '%, ' + v * 100 + '%)';
+    }
+    function chromaToRgb (arr) {
+        if (arr.length === 4)
+            return 'rgba(' + arr[0] + ', ' + arr[1] + ', ' + arr[2] + ', ' + arr[3] + ')';
+        return 'rgb(' + arr[0]+ ', ' + arr[1] + ', ' + arr[2] + ')';
+    }
+    function chromaToX11 (arr) {
+        var last = 255,
+            color;
+        Object.keys(x11Dictionary).forEach(function (key) {
+            var avg = (Math.abs(x11Dictionary[key][0] - arr[0]) + Math.abs(x11Dictionary[key][1] - arr[1]) + Math.abs(x11Dictionary[key][2] - arr[2])) / 3;
+            if (avg < last) {
+                last = avg;
+                color = key;
+                console.log(avg, color);
+            }
+        });
+        console.log(color);
+    }
+    //  Conversion Methods
+    conversion.hex = function (arr) {
+        var value;
+        if (validation.hex(arr)) {
+            value = arr[0];
+            switch (arr[0].length) {
+                case 1: // Hexidecimal shorthand a, returns aaaaaa
+                    return [parseInt(value + value, 16), parseInt(value + value, 16), parseInt(value + value, 16)];
+                case 2: // Hexidecima shorthand ab, returns ababab
+                    return [parseInt(value, 16), parseInt(value, 16), parseInt(value, 16)];
+                case 3: // Hexidecimal shorthand abc, returns aabbcc
+                    return [parseInt(value[0] + value[0], 16), parseInt(value[1] + value[1], 16), parseInt(value[2] + value[2], 16)];
+                case 4: // Hexidecimal/alpha shorthand abcd, returns aabbccdd
+                    return [parseInt(value[0] + value[0], 16), parseInt(value[1] + value[1], 16), parseInt(value[2] + value[2], 16), parseInt(value[3] + value[3], 16) / 255];
+                case 6: // Hexidecimal abcdef
+                    return value.match(/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i).slice(1).map(function (v) {
+                        return parseInt(v, 16);
+                    }); // Set alpha
+                case 8: // Hexidecimal/alpha abcdef01
+                    return value.match(/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i).slice(1).map(function (v, i) {
+                        return i < 3 ? parseInt(v, 16) : parseInt(v, 16) / 255;
+                    });
+                default:
+                    break;
+            }
+        }
+    };
+    conversion.hsl = function (arr) {
+        var r, g, b, values;
+        function getHue (t, s, l) {
+            var q = l < 0.5 ? l * (1 + s) : l + s - l * s,
+                p = 2 * l - q;
+            t = t < 0 ? t + 1 : t;
+            t = t > 1 ? t - 1 : t;
+            if (t < 1 / 6) {
+                return p + (q - p) * 6 * t;
+            } else if (t < 1 / 2) {
+                return q;
+            } else if (t < 2 / 3) {
+                return p + (q - p) * (2 / 3 - t) * 6;
+            } else {
+                return p;
+            }
+        }
+        if (validation.hsx(arr)) {
+            values = parseHsx(arr);
+            if (values[1] === 0) {
+                r = g = b = values[2];
+            } else {
+                r = getHue(values[0] + 1 / 3, values[1], values[2]);
+                g = getHue(values[0], values[1], values[2]);
+                b = getHue(values[0] - 1 / 3, values[1], values[2]);
+            }
+            if (values.length === 4)
+                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), values[3]];
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+        return null;
+    };
+    conversion.hsv = function (arr) {
+        var r, g, b, i, f, p, q, t, values;
+        if (validation.hsx(arr)) {
+            values = parseHsx(arr);
+            i = Math.floor(values[0] * 6);
+            f = values[0] * 6 - i;
+            p = values[2] * (1 - values[1]);
+            q = values[2] * (1 - f * values[1]);
+            t = values[2] * (1 - (1 - f) * values[1]);
+            switch (i % 6) {
+                case 0:
+                    r = values[2];
+                    g = t;
+                    b = p;
+                    break;
+                case 1:
+                    r = q;
+                    g = values[2];
+                    b = p;
+                    break;
+                case 2:
+                    r = p;
+                    g = values[2];
+                    b = t;
+                    break;
+                case 3:
+                    r = p;
+                    g = q;
+                    b = values[2];
+                    break;
+                case 4:
+                    r = t;
+                    g = p;
+                    b = values[2];
+                    break;
+                case 5:
+                    r = values[2];
+                    g = p;
+                    b = q;
+            }
+            if (values.length === 4)
+                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), values[3]];
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+        return null;
+    };
+    conversion.rgb = function (arr) {
+        if (validation.rgb(arr)) {
+            return arr.map(function (value) {
+                return parseFloat(value, 10);
+            });
+        }
+        return null;
+    };
+
+    //  Chroma
     chroma = function (model) {
-        console.log(model);
+        var rx, regex = [
+            /^(?:#|0x)([0-9A-F]{1,8})$/i,
+            /^(?:hsla?\()?(-?\d{1,}),\s*(\d{1,3})%,\s*(\d{1,3})%,?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
+            /^(?:hsva?\()?(-?\d{1,}),\s*(\d{1,3})%,\s*(\d{1,3})%,?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
+            /^(?:rgba?\()?(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3}),?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i
+        ];
+        if (typeof model === 'string' && /^[A-Z]+$/i.test(model)) {
+            if (x11Dictionary[model])
+                return rgbToChromaObject(x11Dictionary[model]);
+        } else if (typeof model === 'string' && model.length) {
+            for (rx in regex)
+                if (regex[rx].test(model))
+                    return rgbToChromaObject(convert(sanitize(model.match(regex[rx])), conversion[conversionModels[rx]]));
+        } else if (Array.isArray(model)) {
+            return rgbToChromaObject(rgbToRgb(model));
+        } else {
+            if (validChromaObject(model));
+                return model;
+        }
+        return null;
     };
     chroma.validate = function (value) {
         var rx, regex = [
+            /^(?:#|0x)([0-9A-F]{1,8})$/i,
             /^(?:hsla?|hsva?\()?(-?\d{1,}),\s*(\d{1,3})%,\s*(\d{1,3})%,?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
-            /^(?:rgba?\()?(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3}),?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
-            /^(?:#|0x)([0-9A-F]{1,8})$/i
+            /^(?:rgba?\()?(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3}),?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i
         ];
         if (typeof value === 'string' && /^[A-Z]+$/i.test(value)) {
             return x11Dictionary[value] ? true : false;
         } else if (typeof value === 'string' && value.length) {
             for (rx in regex)
                 if (regex[rx].test(value))
-                    return validate(sanitize(value.match(regex[rx])), validation[models[rx]]);
+                    return validate(sanitize(value.match(regex[rx])), validation[validationModels[rx]]);
             return false;
         } else if (Array.isArray(value)) {
             return validation.rgb(value);
         } else {
             return validChromaObject(value);
         }
-    }
+    };
 }());
