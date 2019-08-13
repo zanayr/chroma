@@ -54,64 +54,56 @@ var chroma;
     models = ['hsx', 'rgb', 'hex'],
     validation = {
         hex: function (arr) {
+            if (Number.isNaN(parseFloat(arr[0], 16)))
+                return false;
             if (!arr[0].length || arr[0].length === 5 || arr[0].length === 7 || arr[0].length > 8)
                 return false;
             return true;
         },
         hsx: function (arr) {
-            var i;
+            var i, n;
             if (3 > arr.length || arr.length > 4)
                 return false;
             for (i = 0; i < arr.length; i = i + 1) {
-                if (!Number.isFinite(parseFloat(arr[i])))
+                n = parseFloat(arr[i], 10);
+                if (Number.isNaN(n))
                     return false;
-                if (i === 3 && !validAlphaValue(parseFloat(arr[i]))) {
+                if (i === 3 && 0 > n || n > 1) {
                     return false;
-                } else if (i && (0 > parseFloat(arr[i], 10) || parseFloat(arr[i], 10) > 100)) {
+                } else if (i && 0 > n || n > 100) {
                     return false;
                 }
             }
             return true;
         },
         rgb: function (arr) {
-            var i;
+            var i, n;
             if (3 > arr.length || arr.length > 4)
                 return false;
             for (i = 0; i < arr.length; i = i + 1) {
-                if (i === 3 ? !validAlphaValue(parseFloat(arr[i])) : !validRGBValue(parseInt(arr[i])))
+                n = parseFloat(arr[i], 10);
+                if (Number.isNaN(n))
+                    return false;
+                if (i === 3 ? 0 > n || n > 1 : 0 > n || n > 255)
                     return false;
             }
             return true;
         }
     };
-    function validAlphaValue (value) {
-        if (typeof value !== 'number' || !Number.isFinite(value))
-            return false;
-        return 0 <= value && value <= 1;
-    }
-    function validRGBValue (value) {
-        if (typeof value !== 'number' || !Number.isFinite(value))
-            return false;
-        return 0 <= value && value <= 255;
-    }
     function validChromaObject (obj) {
-        var k;
-        if (Object.keys(obj).length !== 4)
+        var k, n, len = Object.keys(obj);
+        if (3 > len || len > 4)
             return false;
         for (k in obj) {
-            if (/^r|red|g|green|b|blue|a|alpha$/i.test(k) && (k === 'alpha' ? validAlphaValue(obj[k]) : validRGBValue(obj[k])))
-                continue;
-            return false;
-        }
-        return true;
-    }
-    function validateRGBArray (arr) {
-        var i;
-        if (arr.length < 3 || arr.length > 4)
-            return false;
-        for (i = 0; i < arr.length; i = i + 1)
-            if (i === 3 ? !validAlphaValue(parseFloat(arr[i], 10)) : !validRGBValue(parseInt(arr[i], 10)))
+            n = parseFloat(obj[k]);
+            if (Number.isNaN(n) || !/^alpha|blue|green|red$/i.test(k))
                 return false;
+            if (/^alpha$/.test(k) && (0 > n || n > 1)) {
+                return false;
+            } else if (/^blue|green|red$/i.test(k) && (0 > n || n > 255)) {
+                return false;
+            }
+        }
         return true;
     }
     function sanitize (result) {
@@ -127,7 +119,7 @@ var chroma;
         return false;
     }
 
-    
+
     chroma = function (model) {
         console.log(model);
     };
@@ -145,7 +137,7 @@ var chroma;
                     return validate(sanitize(value.match(regex[rx])), validation[models[rx]]);
             return false;
         } else if (Array.isArray(value)) {
-            return validateRGBArray(value);
+            return validation.rgb(value);
         } else {
             return validChromaObject(value);
         }
