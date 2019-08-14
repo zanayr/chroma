@@ -52,7 +52,7 @@ var chroma;
         silver: [192, 192, 192], teal: [0, 128, 128]
     },
     validationModels = ['hex', 'hsx', 'rgb'],
-    conversionModels = ['hex', 'hsl', 'hsv', 'rgb'];
+    conversionModels = ['hex', 'hsl', 'hsv', 'rgb'],
     conversion = {
         hex: function (arr) {
             var value;
@@ -304,7 +304,7 @@ var chroma;
     //  Chroma to X
     function chromaToHex (arr) {
         var value = '#';
-        arr.forEach(function (hex) {
+        arr.forEach(function (hex, i) {
             var v = i === 3 ? Math.round((hex * 255)).toString(16) : hex.toString(16);
             if (v.length < 2)
                 v = '0' + v;
@@ -353,7 +353,7 @@ var chroma;
             min = Math.min(r, g, b),
             d = max - min,
             h,
-            s = max === 0 ? 0 : d / max;
+            s = max === 0 ? 0 : d / max,
             v = max;
         if (max === min) {
             h = 0;
@@ -393,127 +393,14 @@ var chroma;
         });
         console.log(color);
     }
-    //  Conversion Methods
-    conversion.hex = function (arr) {
-        var value;
-        if (validation.hex(arr)) {
-            value = arr[0];
-            switch (arr[0].length) {
-                case 1: // Hexidecimal shorthand a, returns aaaaaa
-                    return [parseInt(value + value, 16), parseInt(value + value, 16), parseInt(value + value, 16)];
-                case 2: // Hexidecima shorthand ab, returns ababab
-                    return [parseInt(value, 16), parseInt(value, 16), parseInt(value, 16)];
-                case 3: // Hexidecimal shorthand abc, returns aabbcc
-                    return [parseInt(value[0] + value[0], 16), parseInt(value[1] + value[1], 16), parseInt(value[2] + value[2], 16)];
-                case 4: // Hexidecimal/alpha shorthand abcd, returns aabbccdd
-                    return [parseInt(value[0] + value[0], 16), parseInt(value[1] + value[1], 16), parseInt(value[2] + value[2], 16), parseInt(value[3] + value[3], 16) / 255];
-                case 6: // Hexidecimal abcdef
-                    return value.match(/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i).slice(1).map(function (v) {
-                        return parseInt(v, 16);
-                    }); // Set alpha
-                case 8: // Hexidecimal/alpha abcdef01
-                    return value.match(/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i).slice(1).map(function (v, i) {
-                        return i < 3 ? parseInt(v, 16) : parseInt(v, 16) / 255;
-                    });
-                default:
-                    break;
-            }
-        }
-    };
-    conversion.hsl = function (arr) {
-        var r, g, b, values;
-        function getHue (t, s, l) {
-            var q = l < 0.5 ? l * (1 + s) : l + s - l * s,
-                p = 2 * l - q;
-            t = t < 0 ? t + 1 : t;
-            t = t > 1 ? t - 1 : t;
-            if (t < 1 / 6) {
-                return p + (q - p) * 6 * t;
-            } else if (t < 1 / 2) {
-                return q;
-            } else if (t < 2 / 3) {
-                return p + (q - p) * (2 / 3 - t) * 6;
-            } else {
-                return p;
-            }
-        }
-        if (validation.hsx(arr)) {
-            values = parseHsx(arr);
-            if (values[1] === 0) {
-                r = g = b = values[2];
-            } else {
-                r = getHue(values[0] + 1 / 3, values[1], values[2]);
-                g = getHue(values[0], values[1], values[2]);
-                b = getHue(values[0] - 1 / 3, values[1], values[2]);
-            }
-            if (values.length === 4)
-                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), values[3]];
-            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-        }
-        return null;
-    };
-    conversion.hsv = function (arr) {
-        var r, g, b, i, f, p, q, t, values;
-        if (validation.hsx(arr)) {
-            values = parseHsx(arr);
-            i = Math.floor(values[0] * 6);
-            f = values[0] * 6 - i;
-            p = values[2] * (1 - values[1]);
-            q = values[2] * (1 - f * values[1]);
-            t = values[2] * (1 - (1 - f) * values[1]);
-            switch (i % 6) {
-                case 0:
-                    r = values[2];
-                    g = t;
-                    b = p;
-                    break;
-                case 1:
-                    r = q;
-                    g = values[2];
-                    b = p;
-                    break;
-                case 2:
-                    r = p;
-                    g = values[2];
-                    b = t;
-                    break;
-                case 3:
-                    r = p;
-                    g = q;
-                    b = values[2];
-                    break;
-                case 4:
-                    r = t;
-                    g = p;
-                    b = values[2];
-                    break;
-                case 5:
-                    r = values[2];
-                    g = p;
-                    b = q;
-            }
-            if (values.length === 4)
-                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), values[3]];
-            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-        }
-        return null;
-    };
-    conversion.rgb = function (arr) {
-        if (validation.rgb(arr)) {
-            return arr.map(function (value) {
-                return parseFloat(value, 10);
-            });
-        }
-        return null;
-    };
 
     //  Chroma
     chroma = function (model) {
         var rx, regex = [
             /^(?:#|0x)([0-9A-F]{1,8})$/i,
-            /^(?:hsla?\()?(-?\d{1,}),\s*(\d{1,3})%,\s*(\d{1,3})%,?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
-            /^(?:hsva?\()?(-?\d{1,}),\s*(\d{1,3})%,\s*(\d{1,3})%,?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
-            /^(?:rgba?\()?(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3}),?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i
+            /^(?:hsla?)\((-?\d+)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.\d*)?\);*?$/i,
+            /^(?:hsva?)\((-?\d+)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.\d*)?\);*?$/i,
+            /^(?:rgba?\()?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,?\s*(\d\.?\d*)?\s*\)?;*?$/i
         ];
         if (typeof model === 'string' && /^[A-Z]+$/i.test(model)) {
             if (x11Dictionary[model])
@@ -523,7 +410,7 @@ var chroma;
                 if (regex[rx].test(model))
                     return rgbToChromaObject(convert(sanitize(model.match(regex[rx])), conversion[conversionModels[rx]]));
         } else if (Array.isArray(model)) {
-            return rgbToChromaObject(rgbToRgb(model));
+            return rgbToChromaObject(conversion.rgb(model));
         } else {
             if (validChromaObject(model));
                 return model;
@@ -533,12 +420,13 @@ var chroma;
     chroma.validate = function (value) {
         var rx, regex = [
             /^(?:#|0x)([0-9A-F]{1,8})$/i,
-            /^(?:hsla?|hsva?\()?(-?\d{1,}),\s*(\d{1,3})%,\s*(\d{1,3})%,?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i,
-            /^(?:rgba?\()?(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3}),?\s*(\d+\.?\d*|\.\d+)?\s*\)?;*?$/i
+            /^(?:hsla?|hsva?)\((-?\d+)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.\d*)?\);*?$/i,
+            /^(?:rgba?\()?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,?\s*(\d\.?\d*)?\s*\)?;*?$/i
         ];
         if (typeof value === 'string' && /^[A-Z]+$/i.test(value)) {
             return x11Dictionary[value] ? true : false;
         } else if (typeof value === 'string' && value.length) {
+            
             for (rx in regex)
                 if (regex[rx].test(value))
                     return validate(sanitize(value.match(regex[rx])), validation[validationModels[rx]]);
