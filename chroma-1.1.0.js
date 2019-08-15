@@ -168,6 +168,12 @@ var chroma;
         }
     },
     fn = {
+        array: function (obj) {
+            return [obj.red, obj.green, obj.blue, obj.alpha];
+        },
+        // contrast: function (color1, color2) {
+        //     return getContrast(color1, color2);
+        // },
         hex: function (obj) {
             return chromaToHex([obj.red, obj.green, obj.blue]);
         },
@@ -251,17 +257,21 @@ var chroma;
     }
     function validChromaObject (obj) {
         var k, n;
-        if (Object.keys(obj).length !== 4)
+        if (!obj.hasOwnProperty('values'))
             return false;
-        for (k in obj) {
-            n = parseFloat(obj[k]);
-            if (Number.isNaN(n) || !/^alpha|blue|green|red$/i.test(k))
-                return false;
-            if (/^alpha$/.test(k) && (0 > n || n > 1)) {
-                return false;
-            } else if (/^blue|green|red$/i.test(k) && (0 > n || n > 255)) {
-                return false;
+        for (k in obj.values) {
+            if (/^alpha|blue|green|red$/i.test(k)) {
+                n = parseFloat(obj.values[k]);
+                if (Number.isNaN(n))
+                    return false;
+                if (/^alpha$/.test(k) && (0 > n || n > 1)) {
+                    return false;
+                } else if (/^blue|green|red$/i.test(k) && (0 > n || n > 255)) {
+                    return false;
+                }
+                continue;
             }
+            return false;
         }
         return true;
     }
@@ -288,6 +298,84 @@ var chroma;
     function rgbToChromaObject (arr) {
         var o = {},
             keys = ['red', 'green', 'blue', 'alpha'];
+        Object.defineProperties(o, {
+            alpha: {
+                get: function () {
+                    return this.values.alpha;
+                },
+                set: function (value) {
+                    if (0 <= value && value <= 1)
+                        this.values.alpha = value;
+                    return value;
+                }
+            },
+            average: {
+                get: function () {
+                    return (this.red + this.green + this.blue) / 3
+                }
+            },
+            blue: {
+                get: function () {
+                    return this.values.blue;
+                },
+                set: function (value) {
+                    if (0 <= value && value <= 255)
+                        this.values.blue = value;
+                    return value;
+                }
+            },
+            green: {
+                get: function () {
+                    return this.values.green;
+                },
+                set: function (value) {
+                    if (0 <= value && value <= 255)
+                        this.values.green = value;
+                    return value;
+                }
+            },
+            luminance: {
+                get: function () {
+                    var sR = this.red / 255,
+                        sG = this.green / 255,
+                        sB = this.blue / 255;
+                    return {
+                        r: sR <= 0.03928 ? sR / 12.92 : Math.pow((sR + 0.055) / 1.055, 2.4),
+                        g: sG <= 0.03928 ? sG / 12.92 : Math.pow((sG + 0.055) / 1.055, 2.4),
+                        b: sB <= 0.03928 ? sB / 12.92 : Math.pow((sB + 0.055) / 1.055, 2.4)
+                    };
+                }
+            },
+            red: {
+                get: function () {
+                    return this.values.red;
+                },
+                set: function (value) {
+                    if (0 <= value && value <= 255)
+                        this.values.red = value;
+                    return value;
+                }
+            },
+            values: {
+                value: {}
+            }
+        });
+        o.contrast = function (color) {
+            var c,
+                x = this;
+            if (chroma.validate(color)) {
+                c = chroma(color);
+                if (this.average < c.average) {
+                    x = c;
+                    c = this;
+                }
+                return (0.2126 * x.luminance.r + 0.7152 * x.luminance.g + 0.0722 * x.luminance.b + 0.05) / (0.2126 * c.luminance.r + 0.7152 * c.luminance.g + 0.0722 * c.luminance.b + 0.05);
+            }
+            return null;
+        };
+        o.to = function (model) {
+            return fn[model](o);
+        };
         if (arr === null)
             return null;
         arr.forEach(function (value, i) {
@@ -295,9 +383,6 @@ var chroma;
         });
         if (Object.keys(o).length === 3)
             o.alpha = 1;
-        o.to = function (model) {
-            return fn[model](o);
-        };
         return o;
     }
 
@@ -342,8 +427,8 @@ var chroma;
             h = h / 6;
         }
         if (arr.length === 4)
-            return 'hsla(' + h * 360 + ', ' + s * 100 + '%, ' + l * 100 + '%, ' + arr[3] + ')';
-        return 'hsl(' + h * 360 + ', ' + s * 100 + '%, ' + l * 100 + '%)';
+            return 'hsla(' + Math.round(10 * h * 360) / 10 + ', ' + Math.round(10 * s * 100) / 10 + '%, ' + Math.round(10 * l * 100) / 10 + '%, ' + arr[3] + ')';
+        return 'hsl(' + Math.round(10 * h * 360) / 10 + ', ' + Math.round(10 * s * 100) / 10 + '%, ' + Math.round(10 * l * 100) / 10 + '%)';
     }
     function chromaToHsv (arr) {
         var r = arr[0] / 255,
@@ -372,8 +457,8 @@ var chroma;
             h = h / 6;
         }
         if (arr.length === 4)
-            return 'hsva(' + h * 360 + ', ' + s * 100 + '%, ' + v * 100 + '%, ' + arr[3] + ')';
-        return 'hsv(' + h * 360 + ', ' + s * 100 + '%, ' + v * 100 + '%)';
+            return 'hsva(' + Math.round(10 * h * 360) / 10 + ', ' + Math.round(10 * s * 100) / 10 + '%, ' + Math.round(10 * v * 100) / 10 + '%, ' + arr[3] + ')';
+        return 'hsv(' + Math.round(10 * h * 360) / 10 + ', ' + Math.round(10 * s * 100) / 10 + '%, ' + Math.round(10 * v * 100) / 10 + '%)';
     }
     function chromaToRgb (arr) {
         if (arr.length === 4)
@@ -388,18 +473,17 @@ var chroma;
             if (avg < last) {
                 last = avg;
                 color = key;
-                console.log(avg, color);
             }
         });
-        console.log(color);
+        return color;
     }
 
     //  Chroma
     chroma = function (model) {
         var rx, regex = [
             /^(?:#|0x)([0-9A-F]{1,8})$/i,
-            /^(?:hsla?)\((-?\d+)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.\d*)?\);*?$/i,
-            /^(?:hsva?)\((-?\d+)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.\d*)?\);*?$/i,
+            /^(?:hsla?)\((-?\d+\.?\d*)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.?\d*)?\);*?$/i,
+            /^(?:hsva?)\((-?\d+\.?\d*)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.?\d*)?\);*?$/i,
             /^(?:rgba?\()?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,?\s*(\d\.?\d*)?\s*\)?;*?$/i
         ];
         if (typeof model === 'string' && /^[A-Z]+$/i.test(model)) {
@@ -420,7 +504,7 @@ var chroma;
     chroma.validate = function (value) {
         var rx, regex = [
             /^(?:#|0x)([0-9A-F]{1,8})$/i,
-            /^(?:hsla?|hsva?)\((-?\d+)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.\d*)?\);*?$/i,
+            /^(?:hsla?|hsva?)\((-?\d+\.?\d*)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%\s*,?\s*(\d\.?\d*)?\);*?$/i,
             /^(?:rgba?\()?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,?\s*(\d\.?\d*)?\s*\)?;*?$/i
         ];
         if (typeof value === 'string' && /^[A-Z]+$/i.test(value)) {
