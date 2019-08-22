@@ -83,7 +83,7 @@ var chroma;
         }
         return true;
     }
-    function validModel () {
+    function validModel (value) {
         var match;
         function percents (arr) {
             var i, c = 0;
@@ -140,9 +140,9 @@ var chroma;
                     return true;
                 }
             } else if (/^[a-z]{2,}$/g.test(value)) {
-                match = x11Dictionary[value];
+                match = dictionary[value];
                 if (match && match.length === 3)
-                    return true
+                    return true;
             }
         } else if (Array.isArray(value) && 2 < value.length && value.length < 5) {
             match = parse(value);
@@ -165,7 +165,7 @@ var chroma;
         return false;
     }
     //  Auxilary Functions  //
-    function parseModel () {
+    function parseModel (model) {
         var match;
         function percents (arr) {
             var i, c = 0;
@@ -186,63 +186,63 @@ var chroma;
             }
             return a;
         }
-        if (typeof value === 'string' && value.length) {
-            if (value.includes(',')) {
-                match = parse(value.match(/(-?\d{1,3}(\.?\d*)?)+/g));
+        if (typeof model === 'string' && model.length) {
+            if (model.includes(',')) {
+                match = parse(model.match(/(-?\d{1,3}(\.?\d*)?)+/g));
                 if (match && match.length === 3) {
-                    if (/^hsl\(/g.test(value) && percents(value) === 2) {
+                    if (/^hsl\(/g.test(model) && percents(model) === 2) {
                         return validHsx(match) ? ['hsl'].concat(match) : null;
-                    } else if (/^hsv\(/g.test(value) && percents(value) === 2) {
+                    } else if (/^hsv\(/g.test(model) && percents(model) === 2) {
                         return validHsx(match) ? ['hsv'].concat(match) : null;
-                    } else if (/^rgb\(/g.test(value) && !value.includes('%')) {
+                    } else if (/^rgb\(/g.test(model) && !model.includes('%')) {
                         return validRgb(match) ? ['rgb'].concat(match) : null;
-                    } else if (!/[a-z]+/g.test(value) && percents(value) === 2) {
+                    } else if (!/[a-z]+/g.test(model) && percents(model) === 2) {
                         return validHsx(match) ? ['hsv'].concat(match) : null;
-                    } else if (!/[a-z]+/g.test(value) && !value.includes('%')) {
+                    } else if (!/[a-z]+/g.test(model) && !model.includes('%')) {
                         return validRgb(match) ? ['rgb'].concat(match) : null;
                     }
                 } else if (match && match.length === 4) {
-                    if (/^hsla\(/g.test(value) && percents(value) === 2) {
+                    if (/^hsla\(/g.test(model) && percents(model) === 2) {
                         return validHsx(match) ? ['hsla'].concat(match) : null;
-                    } else if (/^hsva\(/g.test(value) && percents(value) === 2) {
+                    } else if (/^hsva\(/g.test(model) && percents(model) === 2) {
                         return validHsx(match) ? ['hsva'].concat(match) : null;
-                    } else if (/^rgba\(/g.test(value) && !value.includes('%')) {
+                    } else if (/^rgba\(/g.test(model) && !model.includes('%')) {
                         return validRgb(match) ? ['rgba'].concat(match) : null;
-                    } else if (!/[a-z]+/g.test(value) && percents(value) === 2) {
+                    } else if (!/[a-z]+/g.test(model) && percents(model) === 2) {
                         return validHsx(match) ? ['hsva'].concat(match) : null;
-                    } else if (!/[a-z]+/g.test(value) && !value.includes('%')) {
+                    } else if (!/[a-z]+/g.test(model) && !model.includes('%')) {
                         return validRgb(match) ? ['rgba'].concat(match) : null;
                     }
                 }
-            } else if (/^(?:#|0x|0X)?([\da-f]{1,8}){1}$/g.test(value)) {
-                match = value.replace(/^#|0x/ig, '').match(/([\da-f])/g);
+            } else if (/^(?:#|0x|0X)?([\da-f]{1,8}){1}$/g.test(model)) {
+                match = model.replace(/^#|0x/ig, '').match(/([\da-f])/g);
                 if (match && (match.length === 4 || match.length === 8)) {
                     return ['hexa'].concat(match);
                 } else if (match && (match.length !== 5 && match.length !== 7)) {
                     return ['hex'].concat(match);
                 }
-            } else if (/^[a-z]{2,}$/g.test(value)) {
-                match = dictionary[value];
+            } else if (/^[a-z]{2,}$/g.test(model)) {
+                match = dictionary[model];
                 if (match && match.length === 3)
                     return ['x11'].concat(match);
             }
-        } else if (Array.isArray(value) && 2 < value.length && value.length < 5) {
-            match = parse(value);
-            if (match && percents(value) === 2) {
+        } else if (Array.isArray(model) && 2 < model.length && model.length < 5) {
+            match = parse(model);
+            if (match && percents(model) === 2) {
                 if (match.length === 3) {
                     return validHsx(match) ? ['hsv'].concat(match) : null;
                 } else if (match.length === 4) {
                     return validHsx(match) ? ['hsva'].concat(match) : null;
                 }
-            } else if (match && !percents(value)) {
+            } else if (match && !percents(model)) {
                 if (match.length === 3) {
                     return validRgb(match) ? ['rgb'].concat(match) : null;
                 } else if (match.length === 4) {
                     return validRgb(match) ? ['rgba'].concat(match) : null;
                 }
             }
-        } else if (validChroma(value)) {
-            return ['rgba'].concat(parse([value.red, value.green, value.blue, value.alpha]));
+        } else if (validChroma(model)) {
+            return ['rgba'].concat(parse([model.red, model.green, model.blue, model.alpha]));
         }
         return null;
     }
@@ -284,12 +284,12 @@ var chroma;
                 return p;
             }
         }
-        if (values[1] === 0) {
-            r = g = b = values[2] / 100;
+        if (arr[1] === 0) {
+            r = g = b = arr[2] / 100;
         } else {
-            r = hue((values[0] % 360) / 360 + 1 / 3, values[1] / 100, values[2] / 100);
-            g = hue((values[0] % 360) / 360, values[1] / 100, values[2] / 100);
-            b = hue((values[0] % 360) / 360 - 1 / 3, values[1] / 100, values[2] / 100);
+            r = hue((arr[0] % 360) / 360 + 1 / 3, arr[1] / 100, arr[2] / 100);
+            g = hue((arr[0] % 360) / 360, arr[1] / 100, arr[2] / 100);
+            b = hue((arr[0] % 360) / 360 - 1 / 3, arr[1] / 100, arr[2] / 100);
         }
         return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
     }
@@ -300,41 +300,44 @@ var chroma;
         var r,
             g,
             b,
-            i = Math.floor(((values[0] % 360) / 360) * 6),
-            f = ((values[0] % 360) / 360) * 6 - i,
-            p = (values[2] / 100) * (1 - (values[1] / 100)),
-            q = (values[2] / 100) * (1 - f * (values[1] / 100)),
-            t = (values[2] / 100) * (1 - (1 - f) * (values[1] / 100));
+            i = Math.floor(((arr[0] % 360) / 360) * 6),
+            f = ((arr[0] % 360) / 360) * 6 - i,
+            p = (arr[2] / 100) * (1 - (arr[1] / 100)),
+            q = (arr[2] / 100) * (1 - f * (arr[1] / 100)),
+            t = (arr[2] / 100) * (1 - (1 - f) * (arr[1] / 100));
         switch (i % 6) {
             case 0:
-                r = values[2] / 100;
+                r = arr[2] / 100;
                 g = t;
                 b = p;
                 break;
             case 1:
                 r = q;
-                g = values[2] / 100;
+                g = arr[2] / 100;
                 b = p;
                 break;
             case 2:
                 r = p;
-                g = values[2] / 100;
+                g = arr[2] / 100;
                 b = t;
                 break;
             case 3:
                 r = p;
                 g = q;
-                b = values[2] / 100;
+                b = arr[2] / 100;
                 break;
             case 4:
                 r = t;
                 g = p;
-                b = values[2] / 100;
+                b = arr[2] / 100;
                 break;
             case 5:
-                r = values[2] / 100;
+                r = arr[2] / 100;
                 g = p;
                 b = q;
+                break;
+            default:
+                break;
         }
         return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
     }
@@ -362,20 +365,21 @@ var chroma;
             case 6:
                 return fromRgba(arr.slice(1));
             default:
-                return arr.slice(1)
+                return arr.slice(1);
         }
     }
     //  To Functions  //
-    function toHex (model, obj) {
-        var alpha = (Math.round(obj.alpha * 255));
-        if (model === 'hex')
-            return '#' + (obj.red < 16 ? '0' + obj.red.toString(16) : obj.red.toString(16)) + (obj.green < 16 ? '0' + obj.green.toString(16) : obj.green.toString(16)) + (obj.blue < 16 ? '0' + obj.blue.toString(16) : obj.blue.toString(16));
-        return '#' + (obj.red < 16 ? '0' + obj.red.toString(16) : obj.red.toString(16)) + (obj.green < 16 ? '0' + obj.green.toString(16) : obj.green.toString(16)) + (obj.blue < 16 ? '0' + obj.blue.toString(16) : obj.blue.toString(16)) + (alpha < 16 ? '0' + alpha.toString(16) : alpha.toString(16));
+    function toHex (model, channels) {
+        var alpha = (Math.round(channels.alpha * 255));
+        if (model === 'hexa')
+            return '#' + (channels.red < 16 ? '0' + channels.red.toString(16) : channels.red.toString(16)) + (channels.green < 16 ? '0' + channels.green.toString(16) : channels.green.toString(16)) + (channels.blue < 16 ? '0' + channels.blue.toString(16) : channels.blue.toString(16)) + (alpha < 16 ? '0' + alpha.toString(16) : alpha.toString(16));
+        return '#' + (channels.red < 16 ? '0' + channels.red.toString(16) : channels.red.toString(16)) + (channels.green < 16 ? '0' + channels.green.toString(16) : channels.green.toString(16)) + (channels.blue < 16 ? '0' + channels.blue.toString(16) : channels.blue.toString(16));
+
     }
-    function toHsl (obj) {
-        var r = obj.red / 255,
-            g = obj.green / 255,
-            b = obj.blue / 255,
+    function toHsl (channels) {
+        var r = channels.red / 255,
+            g = channels.green / 255,
+            b = channels.blue / 255,
             max = Math.max(r, g, b),
             min = Math.min(r, g, b),
             d = max - min,
@@ -403,10 +407,10 @@ var chroma;
         }
         return [Math.round(h * 36000) / 100,Math.round(s * 10000) / 100, Math.round(l * 10000) / 100];
     }
-    function toHsv (obj) {
-        var r = obj.red / 255,
-            g = obj.green / 255,
-            b = obj.blue / 255,
+    function toHsv (channels) {
+        var r = channels.red / 255,
+            g = channels.green / 255,
+            b = channels.blue / 255,
             max = Math.max(r, g, b),
             min = Math.min(r, g, b),
             d = max - min,
@@ -426,28 +430,30 @@ var chroma;
                 case b:
                     h = (r - g) / d + 4;
                     break;
+                default:
+                    break;
             }
             h = h / 6;
         }
         return [Math.round(h * 36000) / 100, Math.round(s * 10000) / 100, Math.round(v * 10000) / 100];
     }
-    function toHsx (model, obj) {
-        var arr = /^hsla?$/g.test(model) ? toHsl(obj) : toHsv(obj);
+    function toHsx (model, channels) {
+        var arr = /^hsla?$/g.test(model) ? toHsl(channels) : toHsv(channels);
         if (/^hsla|hsva$/g.test(model))
-            return model + '(' + arr[0] + ', ' + arr[1] + '%, ' + arr[2] + '%, ' + Math.round(obj.alpha * 100) / 100 + ')';
+            return model + '(' + arr[0] + ', ' + arr[1] + '%, ' + arr[2] + '%, ' + Math.round(channels.alpha * 100) / 100 + ')';
         return  model + '(' + arr[0] + ', ' + arr[1] + '%, ' + arr[2] + '%)';
     }
-    function toRgb (model, obj) {
-        if (/^rgba$/g.test(model))
-            return 'rgba(' + obj.red + ', ' + obj.green + ', ' + obj.blue + ', ' + Math.round(obj.alpha * 100) / 100 + ')';
-        return  'rgb(' + obj.red + ', ' + obj.green + ', ' + obj.blue + ')';
+    function toRgb (model, channels) {
+        if (model === 'rgba')
+            return 'rgba(' + channels.red + ', ' + channels.green + ', ' + channels.blue + ', ' + Math.round(channels.alpha * 100) / 100 + ')';
+        return  'rgb(' + channels.red + ', ' + channels.green + ', ' + channels.blue + ')';
     }
-    function toX11 (obj) {
+    function toX11 (channels) {
         var scores = {},
             nearest = 'snow';
         Object.keys(dictionary).forEach(function (color) {
             var channels = dictionary[color];
-            scores[color] = (Math.abs(obj.red - channels[0]) + Math.abs(obj.green - channels[1]) + Math.abs(obj.blue - channels[2])) / 3;
+            scores[color] = (Math.abs(channels.red - channels[0]) + Math.abs(channels.green - channels[1]) + Math.abs(channels.blue - channels[2])) / 3;
         });
         Object.keys(scores).forEach(function(score) {
             if (scores[nearest] > scores[score])
@@ -455,17 +461,17 @@ var chroma;
         });
         return nearest;
     }
-    function to (model, obj) {
+    function to (model, channels) {
         var dict = {hex: 0, hexa: 0, hsl: 1, hsla: 1, hsv: 1, hsva: 1, rgb: 2, rgba: 2};
-        switch (dict[arr[0]]) {
+        switch (dict[model]) {
             case 0:
-                return toHex(model, obj);
+                return toHex(model, channels);
             case 1:
-                return toHsx(model, obj);
+                return toHsx(model, channels);
             case 2:
-                return toRgb(model, obj);
+                return toRgb(model, channels);
             default:
-                return toX11(obj);
+                return toX11(channels);
         }
     }
     //  Chroma Object  //
@@ -477,7 +483,7 @@ var chroma;
                 },
                 set: function (value) {
                     if (value >= 0 && value <= 1)
-                        this.channles.alpha = value;
+                        this.channels.alpha = value;
                     return value;
                 }
             },
@@ -532,7 +538,7 @@ var chroma;
             },
             to: {
                 value: function (model) {
-                    if (typeof model === 'string' && /^hexa?|hsla?|hsva?|rgba?$/ig.test(model))
+                    if (typeof model === 'string' && /^hexa?|hsla?|hsva?|rgba?|x11$/ig.test(model))
                         return to(model, this.channels);
                     return null;
                 }
@@ -544,37 +550,42 @@ var chroma;
             },
             toHexa: {
                 value: function () {
-                    return to.hexa('hexa', this.channels);
+                    return to('hexa', this.channels);
                 }
             },
             toHsl: {
                 value: function () {
-                    return to.hsl('hsl', this.channels);
+                    return to('hsl', this.channels);
                 }
             },
             toHsla: {
                 value: function () {
-                    return to.hsla('hsla', this.channels);
+                    return to('hsla', this.channels);
                 }
             },
             toHsv: {
                 value: function () {
-                    return to.hsv('hsv', this.channels);
+                    return to('hsv', this.channels);
                 }
             },
             toHsva: {
                 value: function () {
-                    return to.hsva('hsva', this.channels);
+                    return to('hsva', this.channels);
                 }
             },
             toRgb: {
                 value: function () {
-                    return to.rgb('rgb', this.channels);
+                    return to('rgb', this.channels);
                 }
             },
             toRgba: {
                 value: function () {
-                    return to.rgba('rgba', this.channels);
+                    return to('rgba', this.channels);
+                }
+            },
+            toX11: {
+                value: function () {
+                    return to('x11', this.channels);
                 }
             }
         });
@@ -582,9 +593,9 @@ var chroma;
     //  Chroma Function  //
     chroma = function (model) {
         var channels;
-        if (validColor(model)) {
+        if (validModel(model)) {
             channels = from(parseModel(model));
-            return new Chroma(channels[1], channels[2], channels[3], channels[4]);
+            return new Chroma(channels[0], channels[1], channels[2], channels[3]);
         }
         return null;
     };
