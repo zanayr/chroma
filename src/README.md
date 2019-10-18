@@ -2,6 +2,7 @@
 Chroma is a small custom javascript library that provides a very simple abstraction to translate colors.
 
 
+
 ## Chroma Function
 The global chroma function is used to convert a chroma model into a ChromaColor object.
 ```
@@ -68,38 +69,48 @@ chroma('hsva(350, 25%, 100%, 1)');  // hsva model string based on the css hsv mo
 
 
 
-## Properties
+## ChromaColor Properties
+The ChromaColor objects have several useful properties, getters and setters.
+
+**Name**
+The name property returns the original color model's name from its creation.
+```
+console.log(color.name);
+//  logs "x11" to the console
+```
+
 **Model**
-The model property is the stored original value that was passed to the `chroma` function call.
+The model property returns the original color model from its creation.
 ```
 console.log(color.model);
 //  logs "pink" to the console
 ```
 
 **Channels**
-The channels property is a `ChromaChannel` object, storing red, green, blue and alpha values for the `ChromaColor` object.
+The channels property is a store object, containing property values for the red, green, blue and alpha channel values of the ChromaColor object.
 
 **Luminance**
-The luminance property get the chroma color's luminance, or "apparent brightness"
+The luminance property gets the color's luminance, or "apparent brightness". It is a numberic value between 0.05 and 1.05, 0.05 being of low luminance.
 
 **Red**
-The red property gets and sets the red propery value of the `ChromaChannel` object stored in the `channels` property.
+The red property gets and sets the red channel value of the object stored in the channels property.
 ```
 console.log(color.red);
 //  logs 255 to the console
 ```
 
 **Green**
-The green property gets and sets the green propery value of the `ChromaChannel` object stored in the `channels` property.
+The green property gets and sets the green channel value of the object stored in the channels property.
 
 **Blue**
-The blue property gets and sets the blue propery value of the `ChromaChannel` object stored in the `channels` property.
+The blue property gets and sets the blue channel value of the object stored in the channels property.
 
 **Alpha**
-The alpha property gets and sets the alpha propery value of the `ChromaChannel` object stored in the `channels` property.
+The alpha property gets and sets the alpha channel value of the object stored in the channels property.
 
 
-## Methods
+
+## ChromaColor Object Methods
 ChromaColor objects have two methods to convert their color values.
 
 **To**
@@ -107,12 +118,14 @@ The to method takes a valid chroma color model name, as a string, and returns a 
 ```
 console.log(color.to('rgb'));
 //  logs "rgb(255, 193, 205)" to the console
+console.log(color.to('hsva'));
+//  logs "hsva(350, 25%, 100%, 1)" to the console
 ```
 
 **ToArray**
 The toArray method returns an array of numerical rgb values.
 ```
-console.log(color.toArray());
+console.log(color.toArray(''));
 //  logs [255, 193, 205, 1] to the console
 ```
 
