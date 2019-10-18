@@ -110,7 +110,7 @@ The alpha property gets and sets the alpha channel value of the object stored in
 
 
 
-## ChromaColor Object Methods
+## ChromaColor Methods
 ChromaColor objects have two methods to convert their color values.
 
 ### To
