@@ -1,18 +1,18 @@
-# Chroma.js<br />
-Chroma is a small custom javascript library that provides a very simple abstraction to translate colors.
-<br />
-<br />
-<br />
+# Chroma.js\
+Chroma is a small custom javascript library that provides a very simple abstraction to translate colors.\
+\
+\
+\
 ## Chroma Function
 The global chroma function is used to convert a chroma model into a ChromaColor object.
 ```
 var color = chroma('pink');
 //  Will create a new ChromaColor object
 ```
-<br />
+\
 The chroma function has three useful methods: contrast, parse and validate.
 **Contrast**
-<br />
+\
 The contrast method returns a numeric value between the range of 1 and 21, that is the difference in luminance of two passed chroma colors. A value of one is considered to be of low contrast between the colors, while anything above eight is considered high contrast.
 ```
 console.log(chroma.contast(chroma('pink'), chroma('blue')));
