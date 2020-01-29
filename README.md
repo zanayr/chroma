@@ -138,3 +138,29 @@ console.log(color.toArray(true));
 
 ## Summary
 And that about sums it up. If you'd like to see the library in action, check out my two projects, Chroma App or grab.js.
+
+
+
+
+
+
+
+
+
+
+
+## Scope
+Convert Colors
+  rgb/a, hsl/a, hsv/a, hex/a, x11
+Save Colors
+Move colors
+Random
+Undo
+Clear
+---
+Create Pallatte
+  Primary
+  Secondary
+  Accent
+Save Pallete
+Accessability
