@@ -37,11 +37,24 @@ const X11 = { // a dictionary of x11 standard browser color names, and RGB array
 };
 
 //  Auxillary Functions
-function parse(value) {
+function parseModel(value) {
     return [null, null, null, null];
 }
-function validate(value) {
-    return false;
+function validRgb(values) {
+    if (!Array.isArray(values)) return false; // not passed an array
+    else if (values.length < 3) return false; // array is too short
+    else if (values.length > 4) return false; // array is too long
+    for (i in values) {
+        if (typeof value != 'number' || !isFinite(value)) return false; // not a valid number
+        else if (values[i] < 0) return false; // negative value
+        else if (i != 3 && values[i] > 255) return false; // value is greater than 255
+        else if (i == 3 && i > 1) return false;  // alpha channel is greater than 1
+        else if (i > 3) return false;
+    }
+    return true;
+}
+function validateModel(value) {
+    
 }
 
 //  Conversion Functions
@@ -193,76 +206,88 @@ export default class ChromaColor {
   set blue(value) {
     //  Check if the passed value is a finite number and contained in the set
     //  [0, 255]
-    if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.blue = value;
+    if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.blue = Math.floor(value);
     return value;
   }
   set green(value) {
     //  Check if the passed value is a finite number and contained in the set
     //  [0, 255]
-    if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.green = value;
+    if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.green = Math.floor(value);
     return value;
   }
   set red(value) {
     //  Check if the passed value is a finite number and contained in the set
     //  [0, 255]
-    if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.red = value;
+    if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.red = Math.floor(value);
     return value;
   }
 
   //  Static Methods
   static contrast(color1, color2) {
+    let c1, c2;
+    if (validateModel(color1) && validateModel(color2)) {
+        c1 = new ChromaColor(color1);
+        c2 = new ChromaColor(color2);
+        if (c1.luminance > c2.luminance) return c1.luminance / c2.luminance;
+        return c2.luminance / c1.luminance;
+    }
     return null;
   }
   static parse(value) {
     return null;
   }
   static validate(value) {
-    return false
+    return validateModel(value);
   }
   static toHex(value) {
     //  Should return a valid HEX model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToHexString(new ChromaColor(value).channels);
   }
   static toHexa(value) {
     //  Should return a valid HEXA model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToHexString(new ChromaColor(value).channels, true);
   }
   static toHsl(value) {
     //  Should return a valid HSL model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToHslString(new ChromaColor(value).channels);
   }
   static toHsla(value) {
     //  Should return a valid HSLA model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToHslString(new ChromaColor(value).channels, true);
   }
   static toHsv(value) {
     //  Should return a valid HSV model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToHsvString(new ChromaColor(value).channels);
   }
   static toHsva(value) {
     //  Should return a valid HSVA model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToHsvString(new ChromaColor(value).channels, true);
   }
   static toRgb(value) {
     //  Should return a valid RGB model string when passed a valid value
-    if (!validate(value)) return null;
+    //  Valid models:
+    //  "rgb(0, 0, 0)" - string
+    //  [0, 0, 0] - array of numbers
+    //  "0, 0, 0" - string
+    //  0, 0, 0 - 3 int params?
+    if (!validateModel(value)) return null;
     return convertToRgbString(new ChromaColor(value).channels);
   }
   static toRgba(value) {
     //  Should return a valid RGBA model string when passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToRgbString(new ChromaColor(value).channels, true);
   }
   static toNearestX11(value) {
     //  Should return the nearest X11 browser standard color name model string when
     //  passed a valid value
-    if (!validate(value)) return null;
+    if (!validateModel(value)) return null;
     return convertToNearestX11Name(new ChromaColor(value).channels);
   }
 
@@ -310,8 +335,8 @@ export default class ChromaColor {
 
   //  Constructor
   constructor (model) {
-    let parsed = parse(model);
-    this.channels = new ChromaChannel(parsed.values);
-    this.model = parsed.model;
+    let parseModeld = parseModel(model);
+    this.channels = new ChromaChannel(parseModeld.values);
+    this.model = parseModeld.model;
   }
 }
