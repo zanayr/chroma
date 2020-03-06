@@ -91,8 +91,6 @@ function convertToHslArray({red, green, blue, _}) {
         default:
           hue = (sRed - sGreen) / distance + 4;
           break;
-        default:
-          break;
       }
       hue = hue / 6;
   }
@@ -163,7 +161,7 @@ function convertToNearestX11Name(channels) {
 }
 
 //  Channel Class
-export class ChromaChannel {
+class ChromaChannel {
     constructor([red, blue, green, alpha]) {
         this.red = red;
         this.blue = blue;
@@ -173,7 +171,7 @@ export class ChromaChannel {
 }
 
 //  Chroma Class
-export default class ChromaColor {
+class ChromaColor {
   //  Getters
   get alpha() {
     return this.channels.alpha;
@@ -220,6 +218,13 @@ export default class ChromaColor {
     //  [0, 255]
     if (isFinite(value) && (value >= 0 && value <= 255)) this.channels.red = Math.floor(value);
     return value;
+  }
+
+  //  Constructor
+  constructor (model) {
+    let parseModeld = parseModel(model);
+    this.channels = new ChromaChannel(parseModeld.values);
+    this.model = parseModeld.model;
   }
 
   //  Static Methods
@@ -331,12 +336,5 @@ export default class ChromaColor {
   toNearestX11() {
     //  Should return the nearest X11 browser standard color string
     return convertToNearestX11Name(this.channels);
-  }
-
-  //  Constructor
-  constructor (model) {
-    let parseModeld = parseModel(model);
-    this.channels = new ChromaChannel(parseModeld.values);
-    this.model = parseModeld.model;
   }
 }
