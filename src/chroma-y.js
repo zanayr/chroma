@@ -156,7 +156,7 @@ function toHsvArray(channels) {
     } else {
         switch (max) {
             case sRed:
-                hue = (sGreen - sBlue) / distance + (sGreen > sBlue ? 6 : 0);
+                hue = (sGreen - sBlue) / distance + (sGreen < sBlue ? 6 : 0);
                 break;
             case sGreen:
                 hue = (sBlue - sRed) / distance + 2;
@@ -193,6 +193,9 @@ class ChromaColor {
         //  Should return the blue channel value
         return this.channels.blue;
     }
+    get defaults() {
+        return this.defaults;
+    }
     get luminance() {
         //  Should return the luminance of a color using a confusing forumla that can
         //  read about here:
@@ -224,6 +227,10 @@ class ChromaColor {
         if (isFinite(value) && isContained(value, 0, 255)) this.channels.blue = Math.floor(value);
         return value; // return passed value
     }
+    set default(property, value) {
+        if (property === 'hueSaturation' && (value === 'hsv' || value === 'hsl')) this.defaults.hueSaturation = value;
+        return value;
+    }
     set green(value) {
         //  Should set the green channel if the passed value is a finite number and is
         //  contained in the set [0, 255]
@@ -238,10 +245,11 @@ class ChromaColor {
     }
 
     //  Constructor
-    constructor(model) {
+    constructor(model, options={hueSaturation: 'hsv'}) {
         let parsed = parse(model);
         this.channels = new ChromaChannels(parsed.values);
         this.model = parsed.model;
+        this.defaults = options;
     }
 
     //  Static Methods
