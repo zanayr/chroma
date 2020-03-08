@@ -41,13 +41,120 @@ const x11 = {
     turquoise: [64, 224, 208], violet: [238, 130, 238], wheat: [245, 222, 179], white: [255, 255, 255], whitesmoke: [245, 245, 245], 
     yellow: [255, 255, 0], yellowgreen: [154, 205, 50]
 };
+const from = {
+    rgb: values => {
+        let result = [];
+        let a = 1;
+        for (let i = 0; i < 3; i++) {
+            let value = parseInt(values[i], 10);
+            if (isNaN(value) || !isContained(value, 0, 255)) return null;
+            result.push(value);
+        }
+        if (isContained(parseFloat(values[3], 10), 0, 1)) a = parseFloat(values[3], 10);
+        return [...result, a];
+    },
+    hsl: values => {
+        let r, g, b, a = 1;
+        function hue(T, s, l) {
+            let Q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            let P = 2 * l - Q;
+            T = T < 0 ? T + 1 : T;
+            T = T > 1 ? T - 1 : T;
+            if (T < 1 / 6) {
+                return P + (Q - P) * 6 * T;
+            } else if (T < 0.5) {
+                return Q;
+            } else if (T < 2 / 3) {
+                return P + (Q - P) * (2 / 3 - T) * 6;
+            } else {
+                return P;
+            }
+        }
+        if (values[1] == 0) {
+            r = g = b = values[2] / 100;
+        } else {
+            r = hue((values[0] % 360) / 360 + 1 / 3, values[1] / 100, values[2] / 100);
+            g = hue((values[0] % 360) / 360, values[1] / 100, values[2] / 100);
+            b = hue((values[0] % 360) / 360 - 1 / 3, values[1] / 100, values[2] / 100);
+        }
+        if (isContained(parseFloat(values[3], 10), 0, 1)) a = parseFloat(values[3], 10);
+        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), a];
+    },
+    hsv: values => {
+        let r, g, b, a = 1;
+        const [H, S, V] = [parseFloat(values[0], 10), parseFloat(values[1], 10) / 100, parseFloat(values[2], 10) / 100];
+        const C = V * S;
+        const X = C * (1 - Math.abs(((H / 60) % 2) - 1));
+        const m = V - C;
+        switch (Math.floor(H / 6) % 6) {
+            case 0:
+                r = C;
+                g = X;
+                b = 0;
+                break;
+            case 1:
+                r = X;
+                g = C;
+                b = 0;
+                break;
+            case 2:
+                r = 0;
+                g = C;
+                b = X;
+                break;
+            case 3:
+                r = 0;
+                g = X;
+                b = C;
+                break;
+            case 4:
+                r = X;
+                g = 0;
+                b = C;
+                break;
+            default: // 5
+                r = C;
+                g = 0;
+                b = X;
+                break;
+        }
+        if (isContained(parseFloat(values[3], 10), 0, 1)) a = parseFloat(values[3], 10);
+        return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255), a];
+    },
+    hex: values => {
+        switch (values.length) {
+            case 1:
+                return [parseInt(values[0] + values[0], 16), parseInt(values[0] + values[0], 16), parseInt(values[0] + values[0], 16)];
+            case 2:
+                return [parseInt(values[0] + values[1], 16), parseInt(values[0] + values[1], 16), parseInt(values[0] + values[1], 16)];
+            case 3:
+                return [parseInt(values[0] + values[0], 16), parseInt(values[1] + values[1], 16), parseInt(values[2] + values[2], 16)];
+            case 4:
+                return [parseInt(values[0] + values[0], 16), parseInt(values[1] + values[1], 16), parseInt(values[2] + values[2], 16), parseInt(values[3] + values[3], 16)];
+            case 6:
+                return [parseInt(values[0] + values[1], 16), parseInt(values[2] + values[3], 16), parseInt(values[4] + values[5], 16)];
+            case 8:
+                return [parseInt(values[0] + values[1], 16), parseInt(values[2] + values[3], 16), parseInt(values[4] + values[5], 16), (parseInt(values[6] + values[7], 16) / 255)];
+            default:
+                return null;
+        }
+    }
+};
+const to = {
+
+};
 
 //  Auxillary Functions
 function parse(model) {
-    return {
-        model: model,
-        values: [255, 0, 0] // placeholder red
-    };
+    if (model) {
+        if (typeof model === 'string' && model.length) {
+            model = model.replace(/^#|0x|\s/g, '');
+            if (/^rgba?|hsla?|hsva?/ig.test(model)) return from[model.match(/^rgb|hsl|hsv/ig)](model.match(/\d\.?\d*/g));
+            else if (x11[model]) return x11[model];
+            else if (/[a-f\d]{1,8}/ig.test(model)) return from['hex'](model.match(/([a-f\d])/ig));
+        }
+    }
+    return null;
 }
 function sColor({red, green, blue, _}) {
     return [red / 255, green / 255, blue / 255];
@@ -227,10 +334,10 @@ class ChromaColor {
         if (isFinite(value) && isContained(value, 0, 255)) this.channels.blue = Math.floor(value);
         return value; // return passed value
     }
-    set default(property, value) {
-        if (property === 'hueSaturation' && (value === 'hsv' || value === 'hsl')) this.defaults.hueSaturation = value;
-        return value;
-    }
+    // set default(property, value) {
+    //     if (property === 'hueSaturation' && (value === 'hsv' || value === 'hsl')) this.defaults.hueSaturation = value;
+    //     return value;
+    // }
     set green(value) {
         //  Should set the green channel if the passed value is a finite number and is
         //  contained in the set [0, 255]
