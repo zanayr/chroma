@@ -4,11 +4,6 @@
  * Author:      Ryan Fickenscher
  */
 
-//  TO DO
-//  parse models
-//  find and link the documentation on luminance
-//  make a module
-
 const x11 = {
     aliceblue:[240, 248, 255], antiquewhite: [250, 235, 215], aqua: [0, 255, 255], aquamarine: [127, 255, 212], azure: [240, 255, 255], 
     beige: [245, 245, 220], bisque: [255, 228, 196], black: [0, 0, 0], blanchedalmond: [255, 235, 205], blue: [0, 0, 255], 
@@ -54,71 +49,21 @@ const from = {
         return [...result, a];
     },
     hsl: values => {
-        let r, g, b, a = 1;
-        function hue(T, s, l) {
-            let Q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-            let P = 2 * l - Q;
-            T = T < 0 ? T + 1 : T;
-            T = T > 1 ? T - 1 : T;
-            if (T < 1 / 6) {
-                return P + (Q - P) * 6 * T;
-            } else if (T < 0.5) {
-                return Q;
-            } else if (T < 2 / 3) {
-                return P + (Q - P) * (2 / 3 - T) * 6;
-            } else {
-                return P;
-            }
-        }
-        if (values[1] == 0) {
-            r = g = b = values[2] / 100;
-        } else {
-            r = hue((values[0] % 360) / 360 + 1 / 3, values[1] / 100, values[2] / 100);
-            g = hue((values[0] % 360) / 360, values[1] / 100, values[2] / 100);
-            b = hue((values[0] % 360) / 360 - 1 / 3, values[1] / 100, values[2] / 100);
-        }
-        if (isContained(parseFloat(values[3], 10), 0, 1)) a = parseFloat(values[3], 10);
-        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), a];
+        const [H, S, L] = [parseFloat(values[0], 10), parseFloat(values[1], 10) / 100, parseFloat(values[2], 10) / 100];
+        const C = (1 - Math.abs(2 * L - 1)) * S;
+        const X = C * (1 - Math.abs(((H / 60) % 2) - 1));
+        const m = L - C / 2;
+        let [r, g, b] = hueToRgba(H, C, X);
+        let a = isContained(parseFloat(values[3], 10), 0, 1) ? parseFloat(values[3], 10) : 1;
+        return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255), a];
     },
     hsv: values => {
-        let r, g, b, a = 1;
         const [H, S, V] = [parseFloat(values[0], 10), parseFloat(values[1], 10) / 100, parseFloat(values[2], 10) / 100];
         const C = V * S;
         const X = C * (1 - Math.abs(((H / 60) % 2) - 1));
         const m = V - C;
-        switch (Math.floor(H / 6) % 6) {
-            case 0:
-                r = C;
-                g = X;
-                b = 0;
-                break;
-            case 1:
-                r = X;
-                g = C;
-                b = 0;
-                break;
-            case 2:
-                r = 0;
-                g = C;
-                b = X;
-                break;
-            case 3:
-                r = 0;
-                g = X;
-                b = C;
-                break;
-            case 4:
-                r = X;
-                g = 0;
-                b = C;
-                break;
-            default: // 5
-                r = C;
-                g = 0;
-                b = X;
-                break;
-        }
-        if (isContained(parseFloat(values[3], 10), 0, 1)) a = parseFloat(values[3], 10);
+        let [r, g, b] = hueToRgba(H, C, X);
+        let a = isContained(parseFloat(values[3], 10), 0, 1) ? parseFloat(values[3], 10) : 1;
         return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255), a];
     },
     hex: values => {
@@ -143,6 +88,22 @@ const from = {
 const to = {
 
 };
+
+function hueToRgba(h, c, x) {
+    if (h < 60) {
+        return [c , x, 0];
+    } else if (h < 120) {
+        return [x , c, 0];
+    } else if (h < 180) {
+        return [0 , c, x];
+    } else if (h < 240) {
+        return [0 , x, c];
+    } else if (h < 300) {
+        return [x, 0, c];
+    } else {
+        return [c, 0, x];
+    }
+}
 
 //  Auxillary Functions
 function parse(model) {
