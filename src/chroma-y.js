@@ -36,6 +36,106 @@ const x11 = {
     turquoise: [64, 224, 208], violet: [238, 130, 238], wheat: [245, 222, 179], white: [255, 255, 255], whitesmoke: [245, 245, 245], 
     yellow: [255, 255, 0], yellowgreen: [154, 205, 50]
 };
+
+
+//  Validation Functions
+function isContained(n, min, max) {
+    return n >= min && n <= max;
+}
+
+
+
+
+//  Utility Functions
+function hueToRgb(h, c, x) {
+    if (h < 60) {
+        return [c , x, 0];
+    } else if (h < 120) {
+        return [x , c, 0];
+    } else if (h < 180) {
+        return [0 , c, x];
+    } else if (h < 240) {
+        return [0 , x, c];
+    } else if (h < 300) {
+        return [x, 0, c];
+    } else {
+        return [c, 0, x];
+    }
+}
+function bRgb(sR, sG, sB) {
+    //  Should return an array of RGB values in the set [0, 255]
+    for (a of arguments) // check if each argument is contained in the set [0, 1]
+        if (!isContained(a, 0, 1)) return null;
+    return [
+        Math.abs(Math.floor(sR * 255)), // red
+        Math.abs(Math.floor(sG * 255)), // green
+        Math.abs(Math.floor(sB * 255))  // blue
+    ];
+}
+function sRgb(r, g, b) {
+    //  Should return an array of RGB value in the set [0, 1]
+    for (a of arguments) // check if each argument is contained in the set [0, 255]
+        if (!isContained(a, 0, 255)) return null;
+    return [
+        Math.abs(r / 255), // red
+        Math.abs(g / 255), // green
+        Math.abs(b / 255)  // blue
+    ];
+}
+
+//  From Functions
+function fromCmykString(values) {
+    let parsed = []; // 0 = C, 1 = M, 2 = Y, 3 = K
+    for (value of values) {
+        let v = parseFloat(value);
+        if (!isContained(v, 0, 100)) return null;
+        parsed.push(value / 100);
+    }
+    return [
+        255 * (1 - parsed[0]) * (1 - parsed[3]), // red
+        255 * (1 - parsed[1]) * (1 - parsed[3]), // green
+        255 * (1 - parsed[2]) * (1 - parsed[3]), // blue
+    ];
+}
+function fromRgbString(values) {
+    let result = [];
+    let a = 1;
+    for (let i = 0; i < 3; i++) {
+        let value = parseInt(values[i], 10);
+        if (isNaN(value) || !isContained(value, 0, 255)) return null;
+        result.push(value);
+    }
+    if (isContained(parseFloat(values[3], 10), 0, 1)) a = parseFloat(values[3], 10);
+    return [...result, a];
+}
+function fromHslString(values) {
+    const [H, S, L] = [parseFloat(values[0], 10), parseFloat(values[1], 10) / 100, parseFloat(values[2], 10) / 100];
+    const C = (1 - Math.abs(2 * L - 1)) * S;
+    const X = C * (1 - Math.abs(((H / 60) % 2) - 1));
+    const m = L - C / 2;
+    let [r, g, b] = hueToRgba(H, C, X);
+    let a = isContained(parseFloat(values[3], 10), 0, 1) ? parseFloat(values[3], 10) : 1;
+    return [
+        Math.round((r + m) * 255), // red
+        Math.round((g + m) * 255), // green
+        Math.round((b + m) * 255), // blue
+        a                          // alpha
+    ];
+}
+function fromHsvString(values) {
+
+}
+function fromHexString(string) {
+
+}
+function fromX11String(string) {
+
+}
+
+
+
+
+
 const from = {
     rgb: values => {
         let result = [];
@@ -64,7 +164,9 @@ const from = {
         const m = V - C;
         let [r, g, b] = hueToRgba(H, C, X);
         let a = isContained(parseFloat(values[3], 10), 0, 1) ? parseFloat(values[3], 10) : 1;
-        return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255), a];
+        return [
+            Math.round((r + m) * 255),
+            Math.round((g + m) * 255), Math.round((b + m) * 255), a];
     },
     hex: values => {
         switch (values.length) {
@@ -86,7 +188,26 @@ const from = {
     }
 };
 const to = {
+    cmyk: values => { 
 
+    },
+    hsl: (values, alpha) => {
+
+    },
+    hsv: (values, alpha) => {
+
+    },
+    hex: (model, values) => {
+        let a = (Math.round(values.alpha * 255));
+        if (model == 'hexa')
+            return '#' + byteToHex(Math.round(values.red * 255)) + byteToHex(Math.round(values.green * 255)) + byteToHex(Math.round(values.blue * 255)) + byteToHex(Math.round(values.alpha * 255));
+    },
+    rgb: (values, alpha) => {
+
+    },
+    x11: values => {
+
+    }
 };
 
 function hueToRgba(h, c, x) {
@@ -120,9 +241,7 @@ function parse(model) {
 function sColor({red, green, blue, _}) {
     return [red / 255, green / 255, blue / 255];
 }
-function isContained(n, min, max) {
-    return n >= min && n <= max;
-}
+
 function isValid(model) {
     if (parse(model)) return true;
     return false;
