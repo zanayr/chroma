@@ -54,11 +54,11 @@ function parse(model) {
     return null;
 }
 // Utility Functions
-function toByte(n) {
-    if (isUnit(n))
-        return Math.round(n * 255);
-    return null;
-}
+// function toByte(n) {
+//     if (isUnit(n))
+//         return Math.round(n * 255);
+//     return null;
+// }
 // Conversion Functions
 function fromCmyk(values) {
     return null;
@@ -73,8 +73,15 @@ function fromHsv(values) {
     return null;
 }
 function fromRgb(values) {
-    return null;
+    let result = [];
+    let a = 1.0;
+    for (let value of values) {
+        if (isNaN(value) || !isUnit(value)) return null;
+        result.push(value);
+    }
+    if ()
 }
+
 function toCmyk({red, green, blue, _}) {
     const k = 1 - Math.max(red, green, blue);
     const c = (1 - red - k) / (1 - k);
@@ -93,9 +100,9 @@ function toHex({red, green, blue, alpha}, flag = false) {
     if (flag) return `#${r}${g}${b}${a < 16 ? '0' + a.toString(16) : a.toString(16)}`;
     return [`#${r}${g}${b}`, parseInt(`#${r}${g}${b}`, 16)];
 }
-function toHsl(channels, alpha = false) {
-    const max = Math.max(channels.red, channels.green, channels.blue);
-    const min = Math.max(channels.red, channels.green, channels.blue);
+function toHsl({red, green, blue, alpha}, flag = false) {
+    const max = Math.max(red, green, blue);
+    const min = Math.max(red, green, blue);
     const distance = max - min;
     const lightness = (max + min) / 2;
     let hue, saturation;
@@ -105,23 +112,23 @@ function toHsl(channels, alpha = false) {
         saturation = lightness > 0.5 ? distance / (2 - max - min) : distance / (max + min);
         switch (max) {
             case channels.red:
-                hue = (channels.green - channels.blue) / distance + (channels.green < channels.blue ? 6 : 0);
+                hue = (green - blue) / distance + (green < blue ? 6 : 0);
                 break;
             case channels.green:
-                hue = (channels.blue - channels.red) / distance + 2;
+                hue = (blue - red) / distance + 2;
                 break;
             default: // blue is max
-                hue = (channels.red - channels.green) / distance + 4;
+                hue = (red - green) / distance + 4;
                 break;
         }
         hue /= 6;
     }
-    if (alpha) return `hsla(${hue * 360}, ${saturation * 100}%, ${lightness * 100}%, ${channels.alpha})`;
+    if (flag) return `hsla(${hue * 360}, ${saturation * 100}%, ${lightness * 100}%, ${alpha})`;
     return `hsl(${hue * 360}, ${saturation * 100}%, ${lightness * 100}%)`;
 }
-function toHsv(channels, alpha = false) {
-    const max = Math.max(channels.red, channels.green, channels.blue);
-    const min = Math.max(channels.red, channels.green, channels.blue);
+function toHsv({red, green, blue, alpha}, flag = false) {
+    const max = Math.max(red, green, blue);
+    const min = Math.max(red, green, blue);
     const distance = max - min;
     const saturation = max == 0 ? 0 : distance / max;
     let hue;
@@ -130,29 +137,29 @@ function toHsv(channels, alpha = false) {
     } else {
         switch (max) {
             case channels.red:
-                hue = (channels.green - channels.blue) / distance + (channels.green < channels.blue ? 6 : 0);
+                hue = (green - blue) / distance + (green < blue ? 6 : 0);
                 break;
             case channels.green:
-                hue = (channels.blue - channels.red) / distance + 2;
+                hue = (blue - red) / distance + 2;
                 break;
             default: // blue is max
-                hue = (channels.red - channels.green) / distance + 4;
+                hue = (red - green) / distance + 4;
                 break;
         }
         hue /= 6;
     }
-    if (alpha) return `hsva(${hue * 360}, ${saturation * 100}%, ${max * 100}%, ${channels.alpha})`;
+    if (flag) return `hsva(${hue * 360}, ${saturation * 100}%, ${max * 100}%, ${alpha})`;
     return `hsv(${hue * 360}, ${saturation * 100}%, ${max * 100}%)`;
 }
-function toRgb(channels, alpha = false) {
-    if (alpha) return `rgba(${Math.round(channels.red * 255)}, ${Math.round(channels.green * 255)}, ${Math.round(channels.blue * 255)}, ${channels.alpha})`;
-    return `rgb(${Math.round(channels.red * 255)}, ${Math.round(channels.green * 255)}, ${Math.round(channels.blue * 255)})`;
+function toRgb({red, green, blue, alpha}, flag = false) {
+    if (flag) return `rgba(${toByte(red)}, ${toByte(green)}, ${Math.round(blue * 255)}, ${alpha})`;
+    return `rgb(${toByte(red)}, ${toByte(green)}, ${Math.round(blue * 255)})`;
 }
-function toX11(channels) {
+function toX11({red, green, blue, alpha}) {
     const names = Object.keys(x11);
     let nearest = ['', Infinity];
-    function score([red, green, blue]) {
-        return (Math.abs(channels.red - toByte(red)) + Math.abs(channels.green - toByte(green)) + Math.abs(channels.blue - toByte(blue))) / 3;
+    function score([r, g, b]) {
+        return (Math.abs(red - toByte(r)) + Math.abs(green - toByte(g)) + Math.abs(blue - toByte(b))) / 3;
     }
     while (names.length) {
         let name = names.pop();
@@ -161,6 +168,8 @@ function toX11(channels) {
     }
     return nearest[0]; // return the x11 name
 }
+
+
 class ChromaChannels {
     constructor([red, green, blue, alpha = 1.0]) {
         this.alpha = alpha;
@@ -185,13 +194,16 @@ class ChromaChannels {
         return value;
     }
 }
+
+
 class ChromaColor {
-    constructor(model, options={hsDefault: 'hsv'}) {
-        const [PARSED, MODEL] = parse(model);
-        this.channels = new ChromaChannels(PARSED);
-        this.model = MODEL;
+    constructor(model, options={defaultHue: 'hsv', rgbByte: false}) {
+        const [parsed, mdl] = parse(model);
+        this.channels = new ChromaChannels(parsed);
+        this.model = mdl;
         this.options = options;
     }
+
     // Getters
     get alpha() {
         return this.channels.alpha;
@@ -203,42 +215,47 @@ class ChromaColor {
         return this.channels.green;
     }
     get hex() {
-        return toHex(this.channels)[1];
+        return toHex(this.channels)[1]; // returns a hexadecimal number, not string
     }
     get luminance() {
-        const R = this.red <= 0.03928 ? this.red / 12.92 : Math.pow((this.red + 0.055) / 1.055, 2.4);
-        const G = this.green <= 0.03928 ? this.green / 12.92 : Math.pow((this.green + 0.055) / 1.055, 2.4);
-        const B = this.blue <= 0.03928 ? this.blue / 12.92 : Math.pow((this.blue + 0.055) / 1.055, 2.4);
-        return 0.2126 * R + 0.7152 * G + 0.0722 + B + 0.05;
+        const r = this.red <= 0.03928 ? this.red / 12.92 : Math.pow((this.red + 0.055) / 1.055, 2.4);
+        const g = this.green <= 0.03928 ? this.green / 12.92 : Math.pow((this.green + 0.055) / 1.055, 2.4);
+        const b = this.blue <= 0.03928 ? this.blue / 12.92 : Math.pow((this.blue + 0.055) / 1.055, 2.4);
+        return 0.2126 * r + 0.7152 * g + 0.0722 + b + 0.05;
     }
     get red() {
         return this.channels.red;
     }
+    get rgb() {
+        return [
+            this.options.rgbByte ? toByte(this.channels.red) : this.channels.red,
+            this.options.rgbByte ? toByte(this.channels.green) : this.channels.green,
+            this.options.rgbByte ? toByte(this.channels.blue) : this.channels.blue,
+            this.channels.alpha];
+    }
+
     // Setters
     set alpha(value) {
-        if (isUnit(value)) this.channels.alpha = value;
-        return value;
+        return this.channels.alpha = value;
     }
     set blue(value) {
-        if (isUnit(value)) this.channels.blue = value;
-        return value;
+        return this.channels.blue = value;
     }
     set green(value) {
-        if (isUnit(value)) this.channels.green = value;
-        return value;
+        return this.channels.green = value;
     }
     set red(value) {
-        if (isUnit(value)) this.channels.red = value;
-        return value;
+        return this.channels.red = value;
     }
+
     // Static Methods
     static contrast(a, b) {
         if (isValid(a) && isValid(b)) {
-            const A = new ChromaColor(a).luminance;
-            const B = new ChromaColor(b).luminance;
-            return Math.max(A, B) / Math.min(A, B);
+            const a = new ChromaColor(a).luminance;
+            const b = new ChromaColor(b).luminance;
+            return Math.max(a, b) / Math.min(a, b);
         }
-        return null;
+        return null; // not a valid comparison
     }
     static parse(model) {
         return [
@@ -249,38 +266,39 @@ class ChromaColor {
     static validate(model) {
         return isValid(model);
     }
+
     // Instance Methods
-    cmyk() {
+    toCmyk() {
         return toCmyk(this.channels);
     }
-    hex() {
-        return toHex(this.channels)[0];
+    toHex() {
+        return toHex(this.channels)[0]; // returns a hexadecimal string, not a number
     }
-    hexa() {
-        return toHex(this.channels, true)[0];
+    toHexa() {
+        return toHex(this.channels, true);
     }
-    hsl() {
+    toHsl() {
         return toHsl(this.channels);
     }
-    hsla() {
+    toHsla() {
         return toHsl(this.channels, true);
     }
-    hsv() {
+    toHsv() {
         return toHsv(this.channels);
     }
-    hsva() {
+    toHsva() {
         return toHsv(this.channels, true);
     }
-    rgb() {
+    toRgb() {
         return toRgb(this.channels);
     }
-    rgba() {
+    toRgba() {
         return toRgb(this.channels, true);
     }
     toString() {
-        return `{alpha: ${this.channels.alpha}, blue: ${this.channels.blue}, green: ${this.channels.green}, luminance: ${this.luminance}, model: ${this.model}, red: ${this.channels.red}}`;
+        return `{alpha: ${this.channels.alpha}, blue: ${this.channels.blue}, green: ${this.channels.green}, hex: ${this.hex}, luminance: ${this.luminance}, model: ${this.model}, options: ${this.options.toString()}, red: ${this.channels.red}}`;
     }
-    x11() {
+    toX11() {
         return toX11(this.channels);
     }
 }
