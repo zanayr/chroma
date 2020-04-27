@@ -1,41 +1,110 @@
 // Auxillary Functions
-function leftPad(value, character, count) {
-    for (let c = 0; c < count; c++)
-        value = character + value;
-    return value;
-}
 // Validation Functions
+function isByte(value) {
+    return isFinite(value) && isContained(value, [0, 255]);
+}
 function isContained(value, set) {
-    if (typeof value != 'number' || !isFinite(value)) return false;
+    if (!isFinite(value)) return false;
     return value >= set[0] && value <= set[1];
 }
 function isUnit(value) {
-    return typeof value == 'number' && isFinite(value) && isContained(value, [0, 1]);
+    return isFinite(value) && isContained(value, [0, 1]);
 }
 function isValid(model) {
+    
+}
 
+function sortHue(hue, c, x, m) {
+    if (hue < 60) {
+        return [c + m, x + m, 0 + m];
+    } else if (hue < 120) {
+        return [x + m, c + m, 0 + m];
+    } else if (hue < 180) {
+        return [0 + m, c + m, x + m];
+    } else if (hue < 240) {
+        return [0 + m, x + m, c + m];
+    } else if (hue < 300) {
+        return [x + m, 0 + m, c + m];
+    } else {
+        return [c + m, 0 + m, x + m];
+    }
 }
 // From Functions
-function fromCmyk(values) {
-    let k = values.pop();
-    return values.map(value => {
-        return 255 * (1 - value) * (1 - k);
-    });
+function fromCmyk([cyan, magenta, yellow, black]) {
+    for (value of [cyan, magenta, yellow, black])
+        if (!isContained(value, [0, 100])) return null;
+    return [
+        (1 - cyan / 100) * (1 - black / 100),
+        (1 - magenta / 100) * (1 - black / 100),
+        (1 - yellow / 100) * (1 - black / 100),
+        black / 100,
+    ];
 }
-function fromHex(values) {
-    return null;
+function fromHexa(value) {
+    let match;
+    switch (value.length) {
+        case 1:
+            return new Array(3).fill(parseInt(value + value, 16) / 255).concat(1.0);
+        case 2:
+            return new Array(3).fill(parseInt(value, 16) / 255).concat(1.0);
+        case 3:
+            match = value.match(/[a-f\d]{1}/g);
+            if (!match) return null;
+            return match.map(m => parseInt(m + m, 16) / 255).concat(1.0);
+        case 4:
+            match = value.match(/[a-f\d]{1}/g);
+            if (!match) return null;
+            return match.map(m => parseInt(m + m, 16) / 255);
+        case 6:
+            match = value.match(/[a-f\d]{2}/g);
+            if (!match) return null;
+            return match.map(m => parseInt(m, 16) / 255).concat(1.0);
+        case 8:
+            match = value.match(/[a-f\d]{2}/g);
+            if (!match) return null;
+            return match.map(m => parseInt(m, 16) / 255);
+        default:
+            return null;
+
+    }
 }
-function fromHsl(values) {
-    return null;
+function fromHsla([hue, saturation, lightness, alpha = 1.0]) {
+    if (!isFinite(hue)) return null;
+    if (!isContained(saturation, [0, 100])) return null;
+    if (!isContained(lightness, [0, 100])) return null;
+    if (!isContained(alpha, [0, 1])) return null;
+    hue = (360 + (hue % 360)) % 360;
+    saturation /= 100;
+    lightness /= 100;
+    const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+    return sortHue(hue, c, c * (1 - Math.abs((hue / 60 % 2) - 1)), lightness - c / 2).concat(alpha);
 }
-function fromHsv(values) {
-    return null;
+function fromHsva([hue, saturation, value, alpha = 1.0]) {
+    if (!isFinite(hue)) return null;
+    if (!isContained(saturation, [0, 100])) return null;
+    if (!isContained(value, [0, 100])) return null;
+    if (!isContained(alpha, [0, 1])) return null;
+    hue = (360 + (hue % 360)) % 360;
+    saturation /= 100;
+    value /= 100;
+    const c = value * saturation;
+    return sortHue(hue, c, c * (1 - Math.abs((hue / 60 % 2) - 1)), value - c).concat(alpha);
 }
-function fromRgb(values) {
-    return null;
+function fromRgba([red, green, blue, alpha = 1.0]) {
+    let values = [
+        parseInt(red, 10),
+        parseInt(green, 10),
+        parseInt(blue, 10),
+        parseFloat(alpha, 10)
+    ];
+    for (i in values)
+        if (i != 3 ? !isContained(values[i], [0, 255]) : !isContained(values[i], [0, 1])) return null;
+    return [red / 255, green / 255, blue / 255, alpha];
 }
-function fromX11(values) {
-    return null;
+function fromX11(name) {
+    const values = x11[name];
+    if (!values) return null;
+    return values.map(value => value / 255).concat(1.0);
 }
 
 // Conversion Functions
@@ -147,182 +216,117 @@ class ChromaChannels {
         this.blue = blue;
         this.alpha = alpha;
     }
-
-    set alpha(value) {
-        if (isUnit(value)) this.alpha = value;
-        return value;
-    }
-    set blue(value) {
-        if (isByte(value)) this.blue = value;
-        return value;
-    }
-    set green(value) {
-        if (isByte(value)) this.green = value;
-        return value;
-    }
-    set red(value) {
-        if (isByte(value)) this.red = value;
-        return value;
-    }
 }
+
 class ChromaParser {
-    constructor(options = {hueModel: 'hsl'}) {
-        this.options = options;
+    constructor(options = {byte: false}) {
+        this.byte = options.byte;
     }
 
-    // Static Methods
-    static contrast(a, b) {
+    // Instance Methods
+    contrast(a, b) {
         if (!isValid(a) || !isValid(b)) return null;
         const l = new ChromaColor(a).luminance;
         const m = new ChromaColor(b).luminance;
         return Math.max(l, m) / Math.min(l, m);
     }
-    static parse() {
-        function hueSwitch(v, value) {
-            switch (v) {
-                case 0:
-                    if (isFinite(parseFloat(value, 10))) return true;
-                case 1:
-                case 2:
-                    if (isContained(parseFloat(value, 10), [0, 100])) return true;
-                    break;
-                case 3:
-                    if (isContained(parseFloat(value, 10), [0, 1])) return true;
-                    break;
-            }
-            return false;
-        }
+    parse(model) {
         if (arguments.length == 1) {
-            let model = arguments[0];
-            //  string, number, array
-            if (typeof model == 'number') {
-                this.parse(model.toString(16).padStart(6, '0'));
-            } else if (Array.isArray(model)) {
-                //  array of unit interval rgb values
-            } else if (typeof model == 'string') {
-                if (model.includes(',')) {
-                    let values = model.match(/(-?\d{1,3}(\.?\d*)?)+/g);
-                    if (values && values.length == 3) {
-                        if (/^hsl\(/g.test(model)) {
-                            for (let v in values)
-                                if (!hueSwitch(v, values[v])) return null;
-                            return fromHsl(values.map(value => parseFloat(value, 10)));
-                        } else if (/^hsv\(/g.test(model)) {
-                            for (let v in values)
-                                if (!hueSwitch(v, values[v])) return null;
-                            return fromHsv(values.map(value => parseFloat(value, 10)));
-                        } else if (/^rgb\(/g.test(model) || !model.includes('%')) {
-                            for (let value of values)
-                                if (!isContained(parseInt(value, 10), [0, 255])) return null;
-                            return fromRgb(values.map(value => parseInt(value, 10)));
-                        } else if (model.match(/%/g).length == 2) {
-                            if (this.options.hueModel == 'hsl') {
-                                for (let v in values)
-                                    if (!hueSwitch(v, values[v])) return null;
-                                return fromHsl(values.map(value => parseFloat(value, 10)));
-                            } else {
-                                for (let v in values)
-                                    if (!hueSwitch(v, values[v])) return null;
-                                return fromHsv(values.map(value => parseFloat(value, 10)));
-                            }
-                        }
-                    } else if (values && values.length == 4) {
-                        if (/^cmyk\(/g.test(model)) {
-                            for (let value of values)
-                                if (!isContained(parseFloat(value, 10), [0, 10])) return null;
-                            return fromCmyk(values.map(value => parseFloat(value, 10)));
-                        } else if (/^hsla\(/g.test(model)) {
-                            for (let v in values)
-                                if (!hueSwitch(v, values[v])) return null;
-                            return fromHsl(values.map(value => parseFloat(value, 10)));
-                        } else if (/^hsva\(/g.test(model)) {
-                            for (let v in values)
-                                if (!hueSwitch(v, values[v])) return null;
-                            return fromHsv(values.map(value => parseFloat(value, 10)));
-                        } else if (/^rgba\(/g.test(model) || !model.includes('%')) {
-                            for (let v in values) {
-                                let [value, max] = v != 3 ? [parseInt(values[v], 10), 255] : [parseInt(values[v], 10), 1];
-                                if (!isContained(value, [0, max])) return null;
-                            }
-                            return fromRgb(values.map((value, i) => {
-                                if (i != 3) return parseInt(value, 10);
-                                return parseFloat(value, 10);
-                            }));
-                        } else if (model.match(/%/g).length == 2) {
-                            if (this.options.hueModel == 'hsl') {
-                                for (let v in values)
-                                    if (!hueSwitch(v, values[v])) return null;
-                                return fromHsl(values.map(value => parseFloat(value, 10)));
-                            } else {
-                                for (let v in values)
-                                    if (!hueSwitch(v, values[v])) return null;
-                                return fromHsv(values.map(value => parseFloat(value, 10)));
-                            }
-                        }
+            if (typeof model == 'string' && model.length) {
+                model = model.replace(/\s|#|0x/gi, ''); // remove all whitespace, `#` or `0x`
+                if (isFinite(parseInt(model, 16)) && /^[\da-f]{1,8}/ig.test(model)) {
+                    return fromHexa(model);
+                } else if (/[a-z]+/ig.test(model)) {
+                    return fromX11(model);
+                } else if (/[-\d,\.]+/ig.test(model)) {
+                    let match = model.match(/(-?\d+\.?\d*)/g);
+                    if (!match) return null;
+                    return fromRgba(match);
+                } else {
+                    let match = model.match(/(-?\d+\.?\d*)/g);
+                    if (!match) return null;
+                    if (/^rgba?\(/ig.test(model)) {
+                        return fromRgba(match);
+                    } else if (/^hsla?\(/ig.test(model)) {
+                        return fromHsla(match);
+                    } else if (/^hsva?\(/ig.test(model)) {
+                        return fromHsva(match);
+                    } else if (/^cmyk\(/ig.test(model)) {
+                        return fromCmyk(match);
                     }
-                } else if (/^(?:#|0x|0X)?([\da-f]{1,8}){1}$/g.test(arg)) {
-                    let match = model.replace(/^#|0x/ig, '').match(/([\da-f])/g);
-                    if (match && (match.length != 5 || match.length != 7)) return fromHex(match);
-                } else if (/^[a-z]{2,}$/g.test(model)) {
-                    let match = x11[model];
-                    if (match && match.length == 3) return fromX11(x11[arg]);
                 }
+            } else if (typeof model == 'number' && isFinite(model)) {
+                return this.parse(model.toString(16).padStart(6, '0')); // run it again as a hex string
+            } else if (Array.isArray(model) && (model.length == 3 || model.length == 4)) {
+                // 1. Parse each element, and check for valid number values
+                // 2. Check the first three values, depending on mode, do not fit their
+                //    bounds OR if the fourth does not fit its bound either
+                let values = [];
+                for (let m in model) {
+                    let value = parseFloat(model[m], 10);
+                    if (!isFinite(value)) return null;
+                    if (!(m != 3 && this.byte ? isByte(value) : isUnit(value)) && !(m == 3 && isUnit(value))) return null;
+                    values.push(value);
+                }
+                return values;
             }
         } else if (arguments.length == 3 || arguments.length == 4) {
-            this.parse(Array.from(arguments));
+            return this.parse(Array.from(arguments)); // run it again as an array of values
         }
         return null;
     }
-    static toCmyk(model) {
+    toCmyk(model) {
         if (!isValid(model)) return null;
         return toCmykString(new ChromaColor(model).channels);
     }
-    static toHex(model) {
+    toHex(model) {
         if (!isValid(model)) return null;
         return toHexString(new ChromaColor(model).channels, false);
     }
-    static toHexa(model) {
+    toHexa(model) {
         if (!isValid(model)) return null;
         return toHexString(new ChromaColor(model).channels, true);
     }
-    static toHsl(model) {
+    toHsl(model) {
         if (!isValid(model)) return null;
         return toHslString(new ChromaColor(model).channels, false);
     }
-    static toHsla(model) {
+    toHsla(model) {
         if (!isValid(model)) return null;
         return toHslString(new ChromaColor(model).channels, true);
     }
-    static toHsv(model) {
+    toHsv(model) {
         if (!isValid(model)) return null;
         return toHsvString(new ChromaColor(model).channels, false);
     }
-    static toHsva(model) {
+    toHsva(model) {
         if (!isValid(model)) return null;
         return toHsvString(new ChromaColor(model).channels, true);
     }
-    static toRgb(model) {
+    toRgb(model) {
         if (!isValid(model)) return null;
         return toRgbString(new ChromaColor(model).channels, false);
     }
-    static toRgba(model) {
+    toRgba(model) {
         if (!isValid(model)) return null;
         return toRgbString(new ChromaColor(model).channels, true);
     }
-    static toX11(model) {
+    toX11(model) {
         if (!isValid(model)) return null;
         return toX11String(new ChromaColor(model).channels);
     }
-    static validate(model) {
+    validate(model) {
         return isValid(model);
     }
 }
+
 class ChromaColor {
     constructor(model) {
-        const [values, model] = ChromaParser.parse(model);
+        const [values, original] = arguments.length == 1 ? ChromaParser.parse2(model) : ChromaParser.parse2(Array.from(arguments));
         //  Create a new channel object and store the original model and options object
         this.channels = new ChromaChannels(values);
-        this.model = model;
+        this.model = original;
+
     }
 
     // Getters
@@ -342,7 +346,7 @@ class ChromaColor {
         const r = this.red <= 0.03928 ? this.red / 12.92 : Math.pow((this.red + 0.055) / 1.055, 2.4);
         const g = this.green <= 0.03928 ? this.green / 12.92 : Math.pow((this.green + 0.055) / 1.055, 2.4);
         const b = this.blue <= 0.03928 ? this.blue / 12.92 : Math.pow((this.blue + 0.055) / 1.055, 2.4);
-        return 0.2126 * r + 0.7152 * g + 0.0722 + b + 0.05;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05;
     }
     get red() {
         return this.channels.red;
@@ -353,15 +357,19 @@ class ChromaColor {
 
     // Setters
     set alpha(value) {
-        return this.channels.alpha = value;
+        if (isUnit(value)) this.channels.alpha = value;
+        return value;
     }
     set blue(value) {
-        return this.channels.blue = value;
+        if (isUnit(value)) this.channels.blue = value;
+        return value;
     }
     set green(value) {
-        return this.channels.green = value;
+        if (isUnit(value)) this.channels.green = value;
+        return value;
     }
     set red(value) {
-        return this.channels.red = value;
+        if (isUnit(value)) this.channels.red = value;
+        return value;
     }
 }

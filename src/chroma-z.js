@@ -79,7 +79,6 @@ function fromRgb(values) {
         if (isNaN(value) || !isUnit(value)) return null;
         result.push(value);
     }
-    if ()
 }
 
 function toCmyk({red, green, blue, _}) {
