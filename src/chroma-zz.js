@@ -1,17 +1,56 @@
 // Auxillary Functions
 // Validation Functions
-function isByte(value) {
-    return isFinite(value) && isContained(value, [0, 255]);
-}
 function isContained(value, set) {
     if (!isFinite(value)) return false;
     return value >= set[0] && value <= set[1];
 }
-function isUnit(value) {
-    return isFinite(value) && isContained(value, [0, 1]);
-}
 function isValid(model) {
-    
+    if (arguments.length == 1) {
+        if (model instanceof ChromaColor || model instanceof ChromaChannels) {
+            return true;
+        } else if (typeof model == 'string' && model.length) {
+            model = model.replace(/\s|#|0x/gi, ''); // remove all whitespace, `#` or `0x`
+            if (isFinite(parseInt(model, 16)) && /^[\da-f]{1,8}/ig.test(model)) {
+                return true;
+            } else if (/[a-z]+/ig.test(model)) {
+                if (x11[model]) return true;
+            } else if (/[-\d,\.]+/ig.test(model)) {
+                let match = model.match(/(-?\d+\.?\d*)/g);
+                if (!match) return null;
+                return fromRgba(match);
+            } else {
+                let match = model.match(/(-?\d+\.?\d*)/g);
+                if (!match) return null;
+                if (/rgba?\((\d+\.?\d*,?){3,4}\)$/ig.test(model)) {
+                    return true;
+                } else if (/hsla?\((\d+\.?\d*%?,?){3,4}\)$/ig.test(model)) {
+                    return true;
+                } else if (/^hsva?\(/ig.test(model)) {
+                    return fromHsva(match);
+                } else if (/^cmyk\(/ig.test(model)) {
+                    return fromCmyk(match);
+                }
+            }
+        } else if (typeof model == 'number' && isFinite(model)) {
+            return this.parse(model.toString(16).padStart(6, '0')); // run it again as a hex string
+        } else if (Array.isArray(model)) {
+            if (model.length == 2) {
+                if (this.byte ? isContained(model[0], [0, 255]) : isContained(model[1], [0, 1])) return null;
+                if (isContained(model[1], [0, 1])) return null;
+                if (this.byte) return [model[0] / 255, model[0] / 255, model[0] / 255, model[1]];
+                return [model[0], model[0], model[0], model[1]];
+            } else if (model.length <= 4) {
+                if (!model[3]) model[3] = 1.0;
+                for (let i in model)
+                    if (!(m != 3 && this.byte ? isContained(model[i], [0, 255]) : isContained(model[i], [0, 1])) && !(m == 3 && isContained(model[i], [0, 1]))) return null;
+                if (this.byte) return [model[0] / 255, model[1] / 255, model[2] / 255, model[3]];
+                return model;
+            }
+        }
+    } else if (arguments.length <= 4) {
+        return this.parse(Array.from(arguments)); // run it again as an array of values
+    }
+    return null;
 }
 
 function sortHue(hue, c, x, m) {
@@ -108,31 +147,27 @@ function fromX11(name) {
 }
 
 // Conversion Functions
-function toByte(value) {
-    if (isUnit(value)) return Math.round(value * 255);
-    return null;
-}
 function toCmykString({red, green, blue, _}) {
     const k = 1 - Math.max(red, green, blue);
     const c = (1 - red - k) / (1 - k);
     const m = (1 - green - k) / (1 - k);
     const y = (1 - blue - k) / (1 - k);
-    return `c:${c} m:${m} y:${y} k:${k}`;
+    return `c:${Math.round(c * 100) / 100}% m:${Math.round(m * 100) / 100}% y:${Math.round(y * 100) / 100}% k:${Math.round(k * 100) / 100}%`;
 }
 function toHexNumber([red, green, blue]) {
-    let r = toByte(red).toString(16);
-    let g = toByte(green).toString(16);
-    let b = toByte(blue).toString(16);
+    let r = Math.round(red * 255).toString(16);
+    let g = Math.round(green * 255).toString(16);
+    let b = Math.round(blue * 255).toString(16);
     r = r.length == 1 ? '0' + r : r; // left pad all single
     g = g.length == 1 ? '0' + g : g; // hexadecimal characters,
     b = b.length == 1 ? '0' + b : b; // with 0, e.g. 'f' -> '0f'
     return parseInt(`${r}${g}${b}`, 16);
 }
 function toHexString({red, green, blue, alpha}, bool) {
-    let r = toByte(red).toString(16);
-    let g = toByte(green).toString(16);
-    let b = toByte(blue).toString(16);
-    let a = toByte(alpha).toString(16);
+    let r = Math.round(red * 255).toString(16);
+    let g = Math.round(green * 255).toString(16);
+    let b = Math.round(blue * 255).toString(16);
+    let a = Math.round(alpha * 255).toString(16);
     r = r.length == 1 ? '0' + r : r; // left pad all
     g = g.length == 1 ? '0' + g : g; // single hexadecimal
     b = b.length == 1 ? '0' + b : b; // characters with 0
@@ -192,14 +227,14 @@ function toHsvString({red, green, blue, alpha}, bool = false) {
     return `hsv(${hue * 360}, ${saturation * 100}%, ${max * 100}%)`;
 }
 function toRgbString({red, green, blue, alpha}, bool = false) {
-    if (bool) return `rgba(${toByte(red)}, ${toByte(green)}, ${toByte(blue)}, ${alpha})`;
-    return `rgb(${toByte(red)}, ${toByte(green)}, ${toByte(blue)})`;
+    if (bool) return `rgba(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}, ${alpha})`;
+    return `rgb(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)})`;
 }
 function toX11String({red, green, blue, _}) {
     const names = Object.keys(x11);
     let nearest = ['', Infinity];
     function score([r, g, b]) {
-        return (Math.abs(red - toByte(r)) + Math.abs(green - toByte(g)) + Math.abs(blue - toByte(b))) / 3;
+        return (Math.abs(red - Math.round(r * 255)) + Math.abs(green - Math.round(g * 255)) + Math.abs(blue - Math.round(b * 255))) / 3;
     }
     while (names.length) {
         let name = names.pop();
@@ -232,7 +267,9 @@ class ChromaParser {
     }
     parse(model) {
         if (arguments.length == 1) {
-            if (typeof model == 'string' && model.length) {
+            if (model instanceof ChromaColor || model instanceof ChromaChannels) {
+                return [model.red, model.green, model.blue, model.alpha];
+            } else if (typeof model == 'string' && model.length) {
                 model = model.replace(/\s|#|0x/gi, ''); // remove all whitespace, `#` or `0x`
                 if (isFinite(parseInt(model, 16)) && /^[\da-f]{1,8}/ig.test(model)) {
                     return fromHexa(model);
@@ -257,20 +294,21 @@ class ChromaParser {
                 }
             } else if (typeof model == 'number' && isFinite(model)) {
                 return this.parse(model.toString(16).padStart(6, '0')); // run it again as a hex string
-            } else if (Array.isArray(model) && (model.length == 3 || model.length == 4)) {
-                // 1. Parse each element, and check for valid number values
-                // 2. Check the first three values, depending on mode, do not fit their
-                //    bounds OR if the fourth does not fit its bound either
-                let values = [];
-                for (let m in model) {
-                    let value = parseFloat(model[m], 10);
-                    if (!isFinite(value)) return null;
-                    if (!(m != 3 && this.byte ? isByte(value) : isUnit(value)) && !(m == 3 && isUnit(value))) return null;
-                    values.push(value);
+            } else if (Array.isArray(model)) {
+                if (model.length == 2) {
+                    if (this.byte ? isContained(model[0], [0, 255]) : isContained(model[1], [0, 1])) return null;
+                    if (isContained(model[1], [0, 1])) return null;
+                    if (this.byte) return [model[0] / 255, model[0] / 255, model[0] / 255, model[1]];
+                    return [model[0], model[0], model[0], model[1]];
+                } else if (model.length <= 4) {
+                    if (!model[3]) model[3] = 1.0;
+                    for (let i in model)
+                        if (!(m != 3 && this.byte ? isContained(model[i], [0, 255]) : isContained(model[i], [0, 1])) && !(m == 3 && isContained(model[i], [0, 1]))) return null;
+                    if (this.byte) return [model[0] / 255, model[1] / 255, model[2] / 255, model[3]];
+                    return model;
                 }
-                return values;
             }
-        } else if (arguments.length == 3 || arguments.length == 4) {
+        } else if (arguments.length <= 4) {
             return this.parse(Array.from(arguments)); // run it again as an array of values
         }
         return null;
@@ -357,19 +395,19 @@ class ChromaColor {
 
     // Setters
     set alpha(value) {
-        if (isUnit(value)) this.channels.alpha = value;
+        if (isContained(value, [0, 1])) this.channels.alpha = value;
         return value;
     }
     set blue(value) {
-        if (isUnit(value)) this.channels.blue = value;
+        if (isContained(value, [0, 1])) this.channels.blue = value;
         return value;
     }
     set green(value) {
-        if (isUnit(value)) this.channels.green = value;
+        if (isContained(value, [0, 1])) this.channels.green = value;
         return value;
     }
     set red(value) {
-        if (isUnit(value)) this.channels.red = value;
+        if (isContained(value, [0, 1])) this.channels.red = value;
         return value;
     }
 }
