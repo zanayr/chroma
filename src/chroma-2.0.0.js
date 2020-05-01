@@ -478,26 +478,29 @@ const parse = (...args) => {
             return [model.rgb, model.model];
         } else if (typeof model == 'string' && model.length) {
             model = model.replace(/\s|#|0x/gi, '');
+            const match = model.match(/(-?\d+\.?\d*)/g);
             if (/^[\da-f]{1,8}$/ig.test(model) && (model.length != 5 && model.length != 7)) {
                 return [fromHexa(model), model];
             } else if (/^[a-z]+$/ig.test(model) && x11[model]) {
                 return [x11[model].concat(1.0), model];
-            } else if (/[-\d,\.]+/ig.test(model)) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toRgbString(values, true)];
-            } else if (/^rgba?\(/ig.test(model)) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toRgbString(values, true)];
-            } else if (/^hsla?\(/ig.test(model)) {
-                let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toHslString(values, true)];
-            } else if (/^hsva?\(/ig.test(model)) {
-                let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toHsvString(values, true)];
-            }  else if (/^cmyk\(/ig.test(model)) {
-                let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
-                if (values) eturn [values, toCmykString(values)];
-            }
+            } else if (match && (match.length == 3 || match.length == 4)) {
+                if (/^rgba?\(/ig.test(model)) {
+                    let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                    if (values) return [values, toRgbString(values, true)];
+                } else if (/^hsla?\(/ig.test(model)) {
+                    let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
+                    if (values) return [values, toHslString(values, true)];
+                } else if (/^hsva?\(/ig.test(model)) {
+                    let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
+                    if (values) return [values, toHsvString(values, true)];
+                }  else if (/^cmyk\(/ig.test(model)) {
+                    let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
+                    if (values) eturn [values, toCmykString(values)];
+                } else if (/[-\d,\.]+/ig.test(model)) {
+                    let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                    if (values) return [values, toRgbString(values, true)];
+                }
+            } 
         } else if (typeof model == 'number' && isFinite(model)) {
             return parse(model.toString(16).padStart(6, '0'));
         } else if (Array.isArray(model) && isRgba(model)) {

@@ -1,7 +1,8 @@
+# DIRECTORIES
 /env/
 /txt/
 /void/
-/test/
+/jasmine/
 
-#MISC
+# MISC
 .DS_Store
