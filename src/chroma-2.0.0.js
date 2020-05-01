@@ -51,23 +51,17 @@ function isHexa(string) {
     return true;
 }
 function isHueModel(array) {
-    const values = array.map(value => parseFloat(value, 10));
-    for (i in values) {
-        if (isNaN(values[i])) return false;
-        if (i == 0) continue;
-        if (i != 3 & !isContained(values[i], [0, 100])) return false;
-        if (i == 3 & !isContained(values[i], [0, 1])) return false;
-    }
+    if (array.length != 3 || array.length != 4) return false;
+    if (!isFinite(parseFloat(array[0], 10)) ||
+        !isContained(parseFloat(array[1], 10), [0, 100]) ||
+        !isContained(parseFloat(array[2], 10), [0, 100])) return false;
+    if (array[3] && !isContained(parseFloat(array[3], 10), [0, 1])) return false;
     return true;
 }
 function isRgba(array) {
-    let values = array.map(value => parseFloat(value, 10));
-    if (values.length < 3) return false;
-    for (i in values) {
-        if (isNaN(values[i])) return false;
-        if (i != 3 & !isContained(values[i], [0, 255])) return false;
-        if (i == 3 & !isContained(values[i], [0, 1])) return false;
-    }
+    if (array.length != 3 || array.length != 4) return false;
+    for (i in array)
+        if (i != 3 ? !isContained(parseInt(array[i], [0, 255]), 10) : !isContained(parseFloat(array[i], [0, 1]), 10)) return false;
     return true;
 }
 function isValid(model) {
@@ -122,7 +116,7 @@ function fromCmyk([cyan, magenta, yellow, black]) {
         (1 - cyan / 100) * (1 - black / 100),
         (1 - magenta / 100) * (1 - black / 100),
         (1 - yellow / 100) * (1 - black / 100),
-        black / 100,
+        1.0,
     ];
 }
 function fromHexa(value) {
@@ -153,7 +147,7 @@ function fromHexa(value) {
 
     }
 }
-function fromHsla([hue, saturation, lightness, alpha = 1.0]) {
+function fromHsla([hue, saturation, lightness, alpha=1.0]) {
     if (!isFinite(hue)) return null;
     if (!isContained(saturation, [0, 100])) return null;
     if (!isContained(lightness, [0, 100])) return null;
@@ -164,7 +158,7 @@ function fromHsla([hue, saturation, lightness, alpha = 1.0]) {
     const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
     return sortHue(hue, c, c * (1 - Math.abs((hue / 60 % 2) - 1)), lightness - c / 2).concat(alpha);
 }
-function fromHsva([hue, saturation, value, alpha = 1.0]) {
+function fromHsva([hue, saturation, value, alpha=1.0]) {
     if (!isFinite(hue)) return null;
     if (!isContained(saturation, [0, 100])) return null;
     if (!isContained(value, [0, 100])) return null;
@@ -175,7 +169,7 @@ function fromHsva([hue, saturation, value, alpha = 1.0]) {
     const c = value * saturation;
     return sortHue(hue, c, c * (1 - Math.abs((hue / 60 % 2) - 1)), value - c).concat(alpha);
 }
-function fromRgba([red, green, blue, alpha = 1.0]) {
+function fromRgba([red, green, blue, alpha=1.0]) {
     let values = [
         parseInt(red, 10),
         parseInt(green, 10),
@@ -209,7 +203,7 @@ function toHexNumber([red, green, blue]) {
     b = b.length == 1 ? '0' + b : b; // with 0, e.g. 'f' -> '0f'
     return parseInt(`${r}${g}${b}`, 16);
 }
-function toHexString({red, green, blue, alpha}, bool) {
+function toHexString([red, green, blue, alpha=1.0], bool) {
     let r = Math.round(red * 255).toString(16);
     let g = Math.round(green * 255).toString(16);
     let b = Math.round(blue * 255).toString(16);
@@ -221,7 +215,7 @@ function toHexString({red, green, blue, alpha}, bool) {
     if (bool) return `#${r}${g}${b}${a}`;
     return `#${r}${g}${b}`;
 }
-function toHslString([red, green, blue, alpha], bool=false) {
+function toHslString([red, green, blue, alpha=1.0], bool=false) {
     const max = Math.max(red, green, blue);
     const min = Math.min(red, green, blue);
     const distance = max - min;
@@ -247,7 +241,7 @@ function toHslString([red, green, blue, alpha], bool=false) {
     if (bool) return `hsla(${hue * 360}, ${saturation * 100}%, ${lightness * 100}%, ${alpha})`;
     return `hsl(${hue * 360}, ${saturation * 100}%, ${lightness * 100}%)`;
 }
-function toHsvString([red, green, blue, alpha], bool=false) {
+function toHsvString([red, green, blue, alpha=1.0], bool=false) {
     const max = Math.max(red, green, blue);
     const min = Math.min(red, green, blue);
     const distance = max - min;
@@ -272,7 +266,7 @@ function toHsvString([red, green, blue, alpha], bool=false) {
     if (bool) return `hsva(${hue * 360}, ${saturation * 100}%, ${max * 100}%, ${alpha})`;
     return `hsv(${hue * 360}, ${saturation * 100}%, ${max * 100}%)`;
 }
-function toRgbString([red, green, blue, alpha], bool=false) {
+function toRgbString([red, green, blue, alpha=1.0], bool=false) {
     if (bool) return `rgba(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}, ${alpha})`;
     return `rgb(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)})`;
 }
@@ -477,34 +471,34 @@ const parse = (...args) => {
         if (model instanceof ChromaColor || model instanceof ChromaChannels) {
             return [model.rgb, model.model];
         } else if (typeof model == 'string' && model.length) {
-            model = model.replace(/\s|#|0x/gi, '');
-            const match = model.match(/(-?\d+\.?\d*)/g);
+            model = model.replace(/\s|#|0x/gi, '').toLowerCase();
             if (/^[\da-f]{1,8}$/ig.test(model) && (model.length != 5 && model.length != 7)) {
                 return [fromHexa(model), model];
             } else if (/^[a-z]+$/ig.test(model) && x11[model]) {
-                return [x11[model].concat(1.0), model];
-            } else if (match && (match.length == 3 || match.length == 4)) {
-                if (/^rgba?\(/ig.test(model)) {
-                    let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-                    if (values) return [values, toRgbString(values, true)];
-                } else if (/^hsla?\(/ig.test(model)) {
-                    let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
-                    if (values) return [values, toHslString(values, true)];
-                } else if (/^hsva?\(/ig.test(model)) {
-                    let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
-                    if (values) return [values, toHsvString(values, true)];
-                }  else if (/^cmyk\(/ig.test(model)) {
-                    let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
-                    if (values) eturn [values, toCmykString(values)];
-                } else if (/[-\d,\.]+/ig.test(model)) {
-                    let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-                    if (values) return [values, toRgbString(values, true)];
-                }
-            } 
+                return [x11[model].map(value => value / 255).concat(1.0), model];
+            } else if (/^rgba?\(((\d+\.?\d*),?){3,4}\)$/ig.test(model)) {
+                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toRgbString(values, true)];
+            } else if (/^hsla?\(((-?\d+\.?\d*)%?,?){3,4}\)$/ig.test(model)) {
+                let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toHslString(values, true)];
+            } else if (/^hsva?\(((-?\d+\.?\d*)%?,?){3,4}\)$/ig.test(model)) {
+                let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toHsvString(values, true)];
+            }  else if (/^cmyk\(((\d+\.?\d*)%,?){4}\)$/ig.test(model)) {
+                let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toCmykString(values)];
+            } else if (/^((\d+\.?\d*),?){3,4}$/ig.test(model) ) {
+                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toRgbString(values, true)];
+            }
         } else if (typeof model == 'number' && isFinite(model)) {
             return parse(model.toString(16).padStart(6, '0'));
-        } else if (Array.isArray(model) && isRgba(model)) {
-            return model.map(value => parseFloat(value, 10));
+        } else if (Array.isArray(model) && (model.length == 3 || model.length == 4)) {
+            for (i in model)
+                if (!isContained(parseFloat(model[i], 10), [0, 1])) return null;
+            if (model.length == 3) return [model.map(value => parseFloat(value, 10)).concat(1.0), model.concat(1.0).toString().replace(/,/g, ', ')]
+            return [model.map(value => parseFloat(value, 10)), model.toString().replace(/,/g, ', ')];
         }
     } else if (args.length <= 4) {
         return parse(Array.from(args));
