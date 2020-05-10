@@ -30,69 +30,8 @@ const x11 = {
     turquoise: [64, 224, 208], violet: [238, 130, 238], wheat: [245, 222, 179], white: [255, 255, 255], whitesmoke: [245, 245, 245], 
     yellow: [255, 255, 0], yellowgreen: [154, 205, 50]
 };
+
 // Auxillary Functions
-// Validation Functions
-function isContained(value, set) {
-    if (!isFinite(value)) return false;
-    return value >= set[0] && value <= set[1];
-}
-function isCmyk(array) {
-    const values = array.map(value => parseFloat(value, 10));
-    for (i in values) {
-        if (isNaN(values[i]) || !isContained(values[i], [0, 100])) return false;
-    }
-    return true;
-}
-function isHexa(string) {
-    if (!string) return false;
-    if (string.length == 5 || string.length == 7) return false;
-    if (!/^[\da-f]$/ig.test(model)) return false;
-    if (!isFinite(parseInt(string, 16))) return false;
-    return true;
-}
-function isHueModel(array) {
-    if (array.length != 3 || array.length != 4) return false;
-    if (!isFinite(parseFloat(array[0], 10)) ||
-        !isContained(parseFloat(array[1], 10), [0, 100]) ||
-        !isContained(parseFloat(array[2], 10), [0, 100])) return false;
-    if (array[3] && !isContained(parseFloat(array[3], 10), [0, 1])) return false;
-    return true;
-}
-function isRgba(array) {
-    if (array.length != 3 || array.length != 4) return false;
-    for (i in array)
-        if (i != 3 ? !isContained(parseInt(array[i], [0, 255]), 10) : !isContained(parseFloat(array[i], [0, 1]), 10)) return false;
-    return true;
-}
-function isValid(model) {
-    if (arguments.length == 1) {
-        if (model instanceof ChromaColor || model instanceof ChromaChannels) {
-            return true;
-        } else if (typeof model == 'string' && model.length) {
-            model = model.replace(/\s|#|0x/gi, '');
-            if (/^[\da-f]{1,8}/ig.test(model)) {
-                return isHexa(model);
-            } else if (x11[model]) {
-                return true;
-            } else if (/[-\d,\.]+/ig.test(model)) {
-                return isRgba(model.match(/(-?\d+\.?\d*)/g));
-            } else if (/^rgba?\(/ig.test(model)) {
-                return isRgba(model.match(/(-?\d+\.?\d*)/g));
-            } else if (/^hsva?|hsla?\(/ig.test(model)) {
-                return isHueModel(model.match(/(-?\d+\.?\d*)/g));
-            } else if (/^cmyk\(/ig.test(model)) {
-                return isCmyk(model.match(/(-?\d+\.?\d*)/g));
-            }
-        } else if (typeof model == 'number' && isFinite(model)) {
-            return isValid(model.toString(16).padStart(6, '0'));
-        } else if (Array.isArray(model)) {
-            return isRgba(model);
-        }
-    } else if (arguments.length <= 4) {
-        return isValid(Array.from(arguments));
-    }
-    return false;
-}
 function sortHue(hue, c, x, m) {
     if (hue < 60) {
         return [c + m, x + m, 0 + m];
@@ -108,6 +47,36 @@ function sortHue(hue, c, x, m) {
         return [c + m, 0 + m, x + m];
     }
 }
+
+// Validation Functions
+function isContained(value, set) {
+    if (!isFinite(value)) return false;
+    return value >= set[0] && value <= set[1];
+}
+function isCmyk(array) {
+    const values = array.map(value => parseFloat(value, 10));
+    for (i in values) {
+        if (isNaN(values[i]) || !isContained(values[i], [0, 100])) return false;
+    }
+    return true;
+}
+function isHue(array) {
+    if (array.length != 3 && array.length != 4) return false;
+    if (!isFinite(parseFloat(array[0], 10))
+        || !isContained(parseFloat(array[1], 10), [0, 100])
+        || !isContained(parseFloat(array[2], 10), [0, 100])) {
+        return false;
+    }
+    if (isFinite(array[3]) && !isContained(parseFloat(array[3], 10), [0, 1])) return false;
+    return true;
+}
+function isRgb(array) {
+    if (array.length != 3 || array.length != 4) return false;
+    for (i in array)
+        if (i != 3 ? !isContained(parseInt(array[i], [0, 255]), 10) : !isContained(parseFloat(array[i], [0, 1]), 10)) return false;
+    return true;
+}
+
 // From Functions
 function fromCmyk([cyan, magenta, yellow, black]) {
     for (value of [cyan, magenta, yellow, black])
@@ -179,11 +148,6 @@ function fromRgba([red, green, blue, alpha=1.0]) {
     for (i in values)
         if (i != 3 ? !isContained(values[i], [0, 255]) : !isContained(values[i], [0, 1])) return null;
     return [red / 255, green / 255, blue / 255, values[3]];
-}
-function fromX11(name) {
-    const values = x11[name];
-    if (!values) return null;
-    return values.map(value => value / 255).concat(1.0);
 }
 
 // Conversion Functions
@@ -285,8 +249,45 @@ function toX11String([red, green, blue, _]) {
 }
 
 
-const validate = value => {
-    
+const validate = (...args) => {
+    if (args.length == 1) {
+        let model = args[0];
+        if (model instanceof ChromaColor || model instanceof ChromaChannels) {
+            return true;
+        } else if (typeof model == 'string' && model.length) {
+            model = model.replace(/\s|#|0x/gi, '').toLowerCase();
+            if (/^[\da-f]{1,8}$/ig.test(model) && (model.length != 5 && model.length != 7)) {
+                return true;
+            } else if (/^[a-z]+$/ig.test(model) && x11[model]) {
+                return true;
+            } else if (/^rgb?\(((\d+),?){3}\)$/ig.test(model)) {
+                return isRgb(model.match(/(\d+)/g));
+            } else if (/^rgba\(((\d+\.?\d*),?){4}\)$/ig.test(model)) {
+                return isRgb(model.match(/(\d+\.?\d*)/g));
+            } else if (/^hsl\(((-?\d+\.?\d*)%?,?){3}\)$/ig.test(model)) {
+                return isHue(model.match(/(-?\d+\.?\d*)/g));
+            } else if (/^hsla\(((-?\d+\.?\d*)%?,?){4}\)$/ig.test(model)) {
+                return isHue(model.match(/(-?\d+\.?\d*)/g));
+            } else if (/^hsv\(((-?\d+\.?\d*)%?,?){3}\)$/ig.test(model)) {
+                return isHue(model.match(/(-?\d+\.?\d*)/g));
+            } else if (/^hsva\(((-?\d+\.?\d*)%?,?){4}\)$/ig.test(model)) {
+                return isHue(model.match(/(-?\d+\.?\d*)/g));
+            }  else if (/^cmyk\(((\d+\.?\d*)%,?){4}\)$/ig.test(model)) {
+                return isCmyk(model.match(/(\d+\.?\d*)/g));
+            } else if (/^((\d+\.?\d*),?){3,4}$/ig.test(model) ) {
+                return isRgb(model.match(/(\d+\.?\d*)/g));
+            }
+        } else if (typeof model == 'number' && isFinite(model)) {
+            return validate(model.toString(16).padStart(6, '0'));
+        } else if (Array.isArray(model) && (model.length == 3 || model.length == 4)) {
+            for (i in model)
+                if (!isContained(parseFloat(model[i], 10), [0, 1])) return false;
+            return true;
+        }
+    } else if (args.length <= 4) {
+        return validate(Array.from(args));
+    }
+    return false;
 };
 
 const parse = (...args) => {
@@ -300,11 +301,11 @@ const parse = (...args) => {
                 return [fromHexa(model), model];
             } else if (/^[a-z]+$/ig.test(model) && x11[model]) {
                 return [x11[model].map(value => value / 255).concat(1.0), model];
-            } else if (/^rgb?\(((\d+\.?\d*),?){3}\)$/ig.test(model)) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+            } else if (/^rgb?\(((\d+),?){3}\)$/ig.test(model)) {
+                let values = fromRgba(model.match(/(\d+)/g));
                 if (values) return [values, toRgbString(values, true)];
             } else if (/^rgba\(((\d+\.?\d*),?){4}\)$/ig.test(model)) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                let values = fromRgba(model.match(/(\d+\.?\d*)/g));
                 if (values) return [values, toRgbString(values, true)];
             } else if (/^hsl\(((-?\d+\.?\d*)%?,?){3}\)$/ig.test(model)) {
                 let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
@@ -319,10 +320,10 @@ const parse = (...args) => {
                 let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
                 if (values) return [values, toHsvString(values, true)];
             }  else if (/^cmyk\(((\d+\.?\d*)%,?){4}\)$/ig.test(model)) {
-                let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
+                let values = fromCmyk(model.match(/(\d+\.?\d*)/g));
                 if (values) return [values, toCmykString(values)];
             } else if (/^((\d+\.?\d*),?){3,4}$/ig.test(model) ) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                let values = fromRgba(model.match(/(\d+\.?\d*)/g));
                 if (values) return [values, toRgbString(values, true)];
             }
         } else if (typeof model == 'number' && isFinite(model)) {
@@ -396,7 +397,7 @@ class ChromaColor {
         return this.channels.red;
     }
     get rgb() {
-        return [this.red, this.green, this.blue, this.alpha];
+        return this.channels.values;
     }
 
     // Setters
@@ -454,7 +455,12 @@ class ChromaColor {
 
     // Static Methods
     static contrast(a, b) {
-        
+        if (validate(a) && validate(b)) {
+            const a = new ChromaColor(a).luminance;
+            const b = new ChromaColor(b).luminance;
+            return Math.max(a, b) / Math.min(a, b);
+        }
+        return null; // not a valid comparison
     }
     static parse(...args) {
         const result = args.length == 1 ? parse(args[0]) : parse(Array.from(args));
