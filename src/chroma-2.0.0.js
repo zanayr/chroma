@@ -178,7 +178,7 @@ function fromRgba([red, green, blue, alpha=1.0]) {
     ];
     for (i in values)
         if (i != 3 ? !isContained(values[i], [0, 255]) : !isContained(values[i], [0, 1])) return null;
-    return [red / 255, green / 255, blue / 255, alpha];
+    return [red / 255, green / 255, blue / 255, values[3]];
 }
 function fromX11(name) {
     const values = x11[name];
@@ -284,9 +284,64 @@ function toX11String({red, green, blue, _}) {
     return nearest[0]; // return just the name
 }
 
+
+const validate = value => {
+    
+};
+
+const parse = (...args) => {
+    if (args.length == 1) {
+        let model = args[0];
+        if (model instanceof ChromaColor || model instanceof ChromaChannels) {
+            return [model.rgb, model.model];
+        } else if (typeof model == 'string' && model.length) {
+            model = model.replace(/\s|#|0x/gi, '').toLowerCase();
+            if (/^[\da-f]{1,8}$/ig.test(model) && (model.length != 5 && model.length != 7)) {
+                return [fromHexa(model), model];
+            } else if (/^[a-z]+$/ig.test(model) && x11[model]) {
+                return [x11[model].map(value => value / 255).concat(1.0), model];
+            } else if (/^rgb?\(((\d+\.?\d*),?){3}\)$/ig.test(model)) {
+                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toRgbString(values, true)];
+            } else if (/^rgba\(((\d+\.?\d*),?){4}\)$/ig.test(model)) {
+                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toRgbString(values, true)];
+            } else if (/^hsl\(((-?\d+\.?\d*)%?,?){3}\)$/ig.test(model)) {
+                let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toHslString(values, true)];
+            } else if (/^hsla\(((-?\d+\.?\d*)%?,?){4}\)$/ig.test(model)) {
+                let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toHslString(values, true)];
+            } else if (/^hsv\(((-?\d+\.?\d*)%?,?){3}\)$/ig.test(model)) {
+                let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toHsvString(values, true)];
+            } else if (/^hsva\(((-?\d+\.?\d*)%?,?){4}\)$/ig.test(model)) {
+                let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toHsvString(values, true)];
+            }  else if (/^cmyk\(((\d+\.?\d*)%,?){4}\)$/ig.test(model)) {
+                let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toCmykString(values)];
+            } else if (/^((\d+\.?\d*),?){3,4}$/ig.test(model) ) {
+                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
+                if (values) return [values, toRgbString(values, true)];
+            }
+        } else if (typeof model == 'number' && isFinite(model)) {
+            return parse(model.toString(16).padStart(6, '0'));
+        } else if (Array.isArray(model) && (model.length == 3 || model.length == 4)) {
+            for (i in model)
+                if (!isContained(parseFloat(model[i], 10), [0, 1])) return null;
+            if (model.length == 3) return [model.map(value => parseFloat(value, 10)).concat(1.0), model.concat(1.0).toString().replace(/,/g, ', ')]
+            return [model.map(value => parseFloat(value, 10)), model.toString().replace(/,/g, ', ')];
+        }
+    } else if (args.length <= 4) {
+        return parse(Array.from(args));
+    }
+    return null;
+};
+
+
 class ChromaChannels {
     constructor([red, green, blue, alpha]) {
-        console.log(red);
         this.red = red;
         this.green = green;
         this.blue = blue;
@@ -405,12 +460,12 @@ class ChromaChannels {
 // }
 
 class ChromaColor {
-    constructor(model) {
-        if (!isValid(model)) return;
-        const [values, original] = (arguments.length == 1 ? ChromaParser.parse(model) : ChromaParser.parse(Array.from(arguments)));
+    constructor(...args) {
+        const [values, model] = (arguments.length == 1 ? parse(args[0]) : parse(Array.from(args)));
+        if (!values || !model) return;
         //  Create a new channel object and store the original model and options object
         this.channels = new ChromaChannels(values);
-        this.model = original;
+        this.model = model;
     }
 
     // Getters
@@ -460,48 +515,3 @@ class ChromaColor {
 
 
 
-const byte = false;
-const validate = value => {
-    
-};
-
-const parse = (...args) => {
-    if (args.length == 1) {
-        let model = args[0];
-        if (model instanceof ChromaColor || model instanceof ChromaChannels) {
-            return [model.rgb, model.model];
-        } else if (typeof model == 'string' && model.length) {
-            model = model.replace(/\s|#|0x/gi, '').toLowerCase();
-            if (/^[\da-f]{1,8}$/ig.test(model) && (model.length != 5 && model.length != 7)) {
-                return [fromHexa(model), model];
-            } else if (/^[a-z]+$/ig.test(model) && x11[model]) {
-                return [x11[model].map(value => value / 255).concat(1.0), model];
-            } else if (/^rgba?\(((\d+\.?\d*),?){3,4}\)$/ig.test(model)) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toRgbString(values, true)];
-            } else if (/^hsla?\(((-?\d+\.?\d*)%?,?){3,4}\)$/ig.test(model)) {
-                let values = fromHsla(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toHslString(values, true)];
-            } else if (/^hsva?\(((-?\d+\.?\d*)%?,?){3,4}\)$/ig.test(model)) {
-                let values = fromHsva(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toHsvString(values, true)];
-            }  else if (/^cmyk\(((\d+\.?\d*)%,?){4}\)$/ig.test(model)) {
-                let values = fromCmyk(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toCmykString(values)];
-            } else if (/^((\d+\.?\d*),?){3,4}$/ig.test(model) ) {
-                let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-                if (values) return [values, toRgbString(values, true)];
-            }
-        } else if (typeof model == 'number' && isFinite(model)) {
-            return parse(model.toString(16).padStart(6, '0'));
-        } else if (Array.isArray(model) && (model.length == 3 || model.length == 4)) {
-            for (i in model)
-                if (!isContained(parseFloat(model[i], 10), [0, 1])) return null;
-            if (model.length == 3) return [model.map(value => parseFloat(value, 10)).concat(1.0), model.concat(1.0).toString().replace(/,/g, ', ')]
-            return [model.map(value => parseFloat(value, 10)), model.toString().replace(/,/g, ', ')];
-        }
-    } else if (args.length <= 4) {
-        return parse(Array.from(args));
-    }
-    return null;
-};

@@ -463,3 +463,5 @@ describe('Testing valid arguments with the Chroma 2.0 parse function', () => {
         expect(parse(1, 0.7137254901960784, 0.7568627450980392)[0]).toEqual(x11['lightpink'].map(value => value / 255).concat(1));
     });
 });
+
+
