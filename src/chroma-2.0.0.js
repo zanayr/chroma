@@ -189,10 +189,10 @@ function fromX11(name) {
 // Conversion Functions
 function toCmykString([red, green, blue, _]) {
     const k = 1 - Math.max(red, green, blue);
-    const c = (1 - red - k) / (1 - k);
-    const m = (1 - green - k) / (1 - k);
-    const y = (1 - blue - k) / (1 - k);
-    return `c:${Math.round(c * 100) / 100}% m:${Math.round(m * 100) / 100}% y:${Math.round(y * 100) / 100}% k:${Math.round(k * 100) / 100}%`;
+    const c = 1 - k == 0 ? 0 : (1 - red - k) / (1 - k);
+    const m = 1 - k == 0 ? 0 : (1 - green - k) / (1 - k);
+    const y = 1 - k == 0 ? 0 : (1 - blue - k) / (1 - k);
+    return `c:${Math.round(c * 100)}% m:${Math.round(m * 100)}% y:${Math.round(y * 100)}% k:${Math.round(k * 100)}%`;
 }
 function toHexNumber([red, green, blue]) {
     let r = Math.round(red * 255).toString(16);
@@ -270,7 +270,7 @@ function toRgbString([red, green, blue, alpha=1.0], bool=false) {
     if (bool) return `rgba(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)}, ${alpha})`;
     return `rgb(${Math.round(red * 255)}, ${Math.round(green * 255)}, ${Math.round(blue * 255)})`;
 }
-function toX11String({red, green, blue, _}) {
+function toX11String([red, green, blue, _]) {
     const names = Object.keys(x11);
     let nearest = ['', Infinity];
     function score([r, g, b]) {
@@ -339,6 +339,11 @@ const parse = (...args) => {
     return null;
 };
 
+class InvalidChromaColor {
+    constructor(message) {
+        this.message = message;
+    }
+}
 
 class ChromaChannels {
     constructor([red, green, blue, alpha]) {
@@ -347,125 +352,25 @@ class ChromaChannels {
         this.blue = blue;
         this.alpha = alpha;
     }
+
+    // getters
+    get values() {
+        return [this.red, this.green, this.blue, this.alpha];
+    }
+
+    // Instance Methods
+    toString() {
+        return `{alpha: ${this.alpha}, blue: ${this.blue}, green: ${this.green}, red: ${this.red}}`;
+    }
 }
-
-// class ChromaParser {
-//     static byte = false;
-
-//     // Instance Methods
-//     contrast(a, b) {
-//         if (!isValid(a) || !isValid(b)) return null;
-//         const l = new ChromaColor(a).luminance;
-//         const m = new ChromaColor(b).luminance;
-//         return Math.max(l, m) / Math.min(l, m);
-//     }
-//     static parse(model) {
-//         if (arguments.length == 1) {
-//             if (model instanceof ChromaColor || model instanceof ChromaChannels) {
-//                 // return [[model.red, model.green, model.blue, model.alpha], model.model];
-//             } else if (typeof model == 'string' && model.length) {
-//                 model = model.replace(/\s|#|0x/gi, ''); // remove all whitespace, `#` or `0x`
-//                 if (/^rgba?\(/ig.test(model)) {
-//                     let values = fromRgba(model.match(/(-?\d+\.?\d*)/g));
-//                     return [
-//                         values,
-//                         toRgbString({red: values[0], green: values[1], blue: values[2], alpha: values[3]}, true)
-//                     ];
-//                 }
-//                 // if (isFinite(parseInt(model, 16)) && /^[\da-f]{1,8}/ig.test(model)) {
-//                 //     return [fromHexa(model), model];
-//                 // } else if (/[a-z]+/ig.test(model)) {
-//                 //     return [fromX11(model), model];
-//                 // } else if (/[-\d,\.]+/ig.test(model)) {
-//                 //     let match = model.match(/(-?\d+\.?\d*)/g);
-//                 //     if (!match) return null;
-//                 //     return [fromRgba(match), model];
-//                 // } else {
-//                 //     let match = model.match(/(-?\d+\.?\d*)/g);
-//                 //     if (!match) return null;
-//                 //     if (/^rgba?\(/ig.test(model)) {
-//                 //         return [fromRgba(match), model];
-//                 //     } else if (/^hsla?\(/ig.test(model)) {
-//                 //         return [fromHsla(match), model];
-//                 //     } else if (/^hsva?\(/ig.test(model)) {
-//                 //         return [fromHsva(match), model];
-//                 //     } else if (/^cmyk\(/ig.test(model)) {
-//                 //         return [fromCmyk(match), model];
-//                 //     }
-//                 // }
-//             } else if (typeof model == 'number' && isFinite(model)) {
-//                 // return ChromaParser.parse(model.toString(16).padStart(6, '0')); // run it again as a hex string
-//             } else if (Array.isArray(model)) {
-//                 // if (model.length == 2) {
-//                 //     if (ChromaParser.byte ? isContained(model[0], [0, 255]) : isContained(model[1], [0, 1])) return null;
-//                 //     if (isContained(model[1], [0, 1])) return null;
-//                 //     if (ChromaParser.byte) return [[model[0] / 255, model[0] / 255, model[0] / 255, model[1]],  toRgba(model)];
-//                 //     return [[model[0], model[0], model[0], model[1]], toRgba(model)];
-//                 // } else if (model.length <= 4) {
-//                 //     if (!model[3]) model[3] = 1.0;
-//                 //     for (let i in model)
-//                 //         if (!(m != 3 && ChromaParser.byte ? isContained(model[i], [0, 255]) : isContained(model[i], [0, 1])) && !(m == 3 && isContained(model[i], [0, 1]))) return null;
-//                 //     if (ChromaParser.byte) return [model[0] / 255, model[1] / 255, model[2] / 255, model[3]];
-//                 //     return model;
-//                 // }
-//             }
-//         } else if (arguments.length <= 4) {
-//             // return ChromaParser.parse(Array.from(arguments)); // run it again as an array of values
-//         }
-//         return null;
-//     }
-//     // toCmyk(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toCmykString(new ChromaColor(model).channels);
-//     // }
-//     // toHex(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toHexString(new ChromaColor(model).channels, false);
-//     // }
-//     // toHexa(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toHexString(new ChromaColor(model).channels, true);
-//     // }
-//     // toHsl(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toHslString(new ChromaColor(model).channels, false);
-//     // }
-//     // toHsla(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toHslString(new ChromaColor(model).channels, true);
-//     // }
-//     // toHsv(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toHsvString(new ChromaColor(model).channels, false);
-//     // }
-//     // toHsva(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toHsvString(new ChromaColor(model).channels, true);
-//     // }
-//     // toRgb(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toRgbString(new ChromaColor(model).channels, false);
-//     // }
-//     // toRgba(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toRgbString(new ChromaColor(model).channels, true);
-//     // }
-//     // toX11(model) {
-//     //     if (!isValid(model)) return null;
-//     //     return toX11String(new ChromaColor(model).channels);
-//     // }
-//     // validate(model) {
-//     //     return isValid(model);
-//     // }
-// }
 
 class ChromaColor {
     constructor(...args) {
-        const [values, model] = (arguments.length == 1 ? parse(args[0]) : parse(Array.from(args)));
-        if (!values || !model) return;
+        const result = args.length == 1 ? parse(args[0]) : parse(Array.from(args));
+        if (!result) throw new InvalidChromaColor('Invalid color model passed to new ChormaColor instance.');
         //  Create a new channel object and store the original model and options object
-        this.channels = new ChromaChannels(values);
-        this.model = model;
+        this.channels = new ChromaChannels(result[0]);
+        this.model = result[1];
     }
 
     // Getters
@@ -510,6 +415,54 @@ class ChromaColor {
     set red(value) {
         if (isContained(value, [0, 1])) this.channels.red = value;
         return value;
+    }
+
+    // Instance Methods
+    toCmyk() {
+        return toCmykString(this.channels.values);
+    }
+    toHex() {
+        return toHexString(this.channels.values, false);
+    }
+    toHexa() {
+        return toHexString(this.channels.values, true);
+    }
+    toHsl() {
+        return toHslString(this.channels.values, false);
+    }
+    toHsla() {
+        return toHslString(this.channels.values, true);
+    }
+    toHsv() {
+        return toHsvString(this.channels.values, false);
+    }
+    toHsva() {
+        return toHsvString(this.channels.values, true);
+    }
+    toRgb() {
+        return toRgbString(this.channels.values, false);
+    }
+    toRgba() {
+        return toRgbString(this.channels.values, true);
+    }
+    toString() {
+        return `{alpha: ${this.alpha}, blue: ${this.blue}, channels: ${this.channels.toString()}, green: ${this.green}, hex: ${this.hex}, luminance: ${this.luminance}, model: ${this.model} red: ${this.red}, rgb: [${this.rgb.toString()}]}`;
+    }
+    toX11() {
+        return toX11String(this.channels.values);
+    }
+
+    // Static Methods
+    static contrast(a, b) {
+        
+    }
+    static parse(...args) {
+        const result = args.length == 1 ? parse(args[0]) : parse(Array.from(args));
+        if (!result) return null;
+        return result[0];
+    }
+    static validate(...args) {
+        return args.length == 1 ? validate(args[0]) : validate(Array.from(args));
     }
 }
 
